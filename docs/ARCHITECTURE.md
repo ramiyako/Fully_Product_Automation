@@ -141,6 +141,20 @@ Example indices:
 - **Execution**: Inside Docker container
 - **Libraries**: RequestsLibrary, SSHLibrary, custom RF libraries
 
+#### 6. Allure (Test Reporting)
+
+- **Purpose**: Interactive test report generation
+- **Version**: 2.25.0
+- **Deployment**: Installed in Docker container and on host (Jenkins)
+- **Integration**: Robot Framework listener + Jenkins plugin
+
+**Features**:
+- Interactive HTML reports with trends
+- Automatic failure categorization
+- Historical analysis across builds
+- Screenshots and log attachments
+- Timeline and behavior views
+
 ---
 
 ## Network Architecture
@@ -220,10 +234,10 @@ docker run --network host ...
 ```
 ┌────────────────────────────────────────────────────────┐
 │              Presentation Layer                        │
-│  ┌──────────────────┐         ┌──────────────────┐   │
-│  │  Kibana          │         │  Jenkins UI      │   │
-│  │  Dashboards      │         │  Pipeline View   │   │
-│  └──────────────────┘         └──────────────────┘   │
+│  ┌──────────────────┐  ┌──────────────┐  ┌─────────┐ │
+│  │  Kibana          │  │  Jenkins UI  │  │ Allure  │ │
+│  │  Dashboards      │  │  Pipeline    │  │ Reports │ │
+│  └──────────────────┘  └──────────────┘  └─────────┘ │
 └────────────────────────────────────────────────────────┘
                          │
 ┌────────────────────────────────────────────────────────┐

@@ -273,7 +273,7 @@ sudo systemctl enable docker
 
 ## Jenkins Installation
 
-### 1. Install Java (Jenkins Requirement)
+### 1. Install Java (Required for Jenkins and Allure)
 
 ```bash
 sudo apt install -y openjdk-17-jdk
@@ -282,7 +282,22 @@ sudo apt install -y openjdk-17-jdk
 java -version
 ```
 
-### 2. Install Jenkins
+### 2. Install Allure CLI
+
+```bash
+# Download and install Allure
+ALLURE_VERSION="2.25.0"
+cd /tmp
+wget https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz
+sudo tar -zxf allure-${ALLURE_VERSION}.tgz -C /opt/
+sudo ln -sf /opt/allure-${ALLURE_VERSION}/bin/allure /usr/bin/allure
+rm allure-${ALLURE_VERSION}.tgz
+
+# Verify installation
+allure --version
+```
+
+### 3. Install Jenkins
 
 ```bash
 # Add Jenkins repository
@@ -305,7 +320,7 @@ sudo systemctl enable jenkins
 sudo systemctl status jenkins
 ```
 
-### 3. Initial Jenkins Setup
+### 4. Initial Jenkins Setup
 
 Get initial admin password:
 
@@ -324,7 +339,7 @@ http://<nuc-ip>:8080
 3. Create admin user
 4. Configure Jenkins URL
 
-### 4. Install Required Jenkins Plugins
+### 5. Install Required Jenkins Plugins
 
 Navigate to: **Manage Jenkins** → **Manage Plugins** → **Available**
 
@@ -333,9 +348,19 @@ Install:
 - **Pipeline Plugin**
 - **Docker Pipeline Plugin**
 - **Robot Framework Plugin**
+- **Allure Jenkins Plugin** (for interactive test reports)
 - **Blue Ocean** (optional, for better UI)
 
-### 5. Configure Jenkins for Docker
+### 6. Configure Allure in Jenkins
+
+1. Navigate to: **Manage Jenkins** → **Tools**
+2. Scroll to **Allure Commandline**
+3. Click **Add Allure Commandline**
+4. Name: `Allure`
+5. Install automatically from Maven Central: `2.25.0`
+6. Save configuration
+
+### 7. Configure Jenkins for Docker
 
 Add Jenkins user to docker group:
 
