@@ -17,12 +17,27 @@ ENV PYTHONUNBUFFERED=1
 # - curl: HTTP requests and health checks
 # - vim: Quick file editing for debugging
 # - net-tools: Network diagnostics
+# - wget: Download Allure CLI
+# - default-jre-headless: Java runtime for Allure (headless to save space)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     curl \
     vim \
     net-tools \
+    wget \
+    default-jre-headless \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Allure CLI
+# Download and install Allure commandline tool for report generation
+ARG ALLURE_VERSION=2.25.0
+RUN wget -q https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz && \
+    tar -zxf allure-${ALLURE_VERSION}.tgz -C /opt/ && \
+    ln -s /opt/allure-${ALLURE_VERSION}/bin/allure /usr/bin/allure && \
+    rm allure-${ALLURE_VERSION}.tgz
+
+# Verify Allure installation
+RUN allure --version
 
 # Set working directory
 WORKDIR /app

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Equipment Connection Failures",
+    "description": "Tests failed due to inability to connect to RF equipment",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*[Cc]onnection.*|.*[Tt]imeout.*|.*[Rr]eachable.*"
+  },
+  {
+    "name": "SCPI Command Errors",
+    "description": "Tests failed due to SCPI command errors or invalid responses",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*SCPI.*|.*[Cc]ommand.*error.*|.*[Uu]ndefined header.*"
+  },
+  {
+    "name": "Measurement Errors",
+    "description": "Tests failed due to measurement or validation errors",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*[Mm]easurement.*|.*[Vv]alidation.*|.*[Aa]ssertion.*"
+  },
+  {
+    "name": "Network Issues",
+    "description": "Tests failed due to network connectivity problems",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*[Nn]etwork.*|.*[Pp]ing.*|.*VLAN.*"
+  },
+  {
+    "name": "Infrastructure Failures",
+    "description": "Tests failed due to infrastructure issues (Elasticsearch, Docker, etc.)",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*Elasticsearch.*|.*[Dd]ocker.*|.*[Ii]nfrastructure.*"
+  },
+  {
+    "name": "Test Setup/Teardown Failures",
+    "description": "Tests failed during setup or teardown phases",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*[Ss]etup failed.*|.*[Tt]eardown failed.*"
+  },
+  {
+    "name": "Product Defects",
+    "description": "Known product defects that cause test failures",
+    "matchedStatuses": ["failed"],
+    "traceRegex": ".*AssertionError.*"
+  },
+  {
+    "name": "Intermittent Failures",
+    "description": "Tests that fail occasionally without a clear pattern",
+    "matchedStatuses": ["failed"],
+    "flaky": true
+  }
+]

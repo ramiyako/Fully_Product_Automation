@@ -16,6 +16,7 @@ An enterprise-grade automation infrastructure running on Intel NUC hardware, des
 | **Containerization** | Docker Engine | Test environment isolation |
 | **Database** | Elasticsearch 8.12.0 | Test results storage |
 | **Visualization** | Kibana 8.12.0 | Dashboard and analytics |
+| **Reporting** | Allure 2.25.0 | Interactive test reports |
 | **Framework** | Robot Framework (Python 3.11) | Test automation |
 
 ## Architecture
@@ -144,9 +145,27 @@ docker run --rm --network host \
 
 ### Viewing Results
 
+Access test reports through multiple interfaces:
+
+- **Allure Report**: Interactive test report with trends, graphs, and detailed execution data
+  - Access via Jenkins Allure plugin at each build
+  - Or download `allure-report.zip` from build artifacts and open `index.html`
+  - Features: Overview, trends, categories, timeline, behaviors, and history
 - **Jenkins**: HTML reports archived in build artifacts
 - **Kibana**: Real-time dashboards at `http://<nuc-ip>:5601`
 - **Local**: `results/` directory contains log.html, report.html, output.xml
+
+#### Allure Report Features
+
+The Allure report provides:
+- **Overview**: Pass/fail statistics, test duration, environment info
+- **Suites**: Hierarchical view of test suites and test cases
+- **Graphs**: Trend charts, status distribution, severity breakdown
+- **Timeline**: Gantt chart showing test execution timeline
+- **Behaviors**: BDD-style test organization
+- **Categories**: Automatic failure categorization (network, SCPI, measurements)
+- **History**: Historical trend analysis across builds
+- **Attachments**: Screenshots, logs, and test artifacts
 
 ## Development Workflow
 
@@ -241,7 +260,8 @@ See [docs/OPERATIONS.md](docs/OPERATIONS.md) for comprehensive troubleshooting.
 ## Technology Stack
 
 - **Python**: 3.11
-- **Robot Framework**: Latest stable
+- **Robot Framework**: 7.0
+- **Allure**: 2.25.0
 - **Docker**: 24.x
 - **Jenkins**: LTS
 - **Elasticsearch**: 8.12.0

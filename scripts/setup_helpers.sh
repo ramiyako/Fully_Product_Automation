@@ -145,7 +145,7 @@ EOF
 }
 
 ################################################################################
-# Install Java (for Jenkins)
+# Install Java (for Jenkins and Allure)
 ################################################################################
 
 install_java() {
@@ -154,6 +154,37 @@ install_java() {
     apt install -y openjdk-17-jdk
 
     log_success "Java installed: $(java -version 2>&1 | head -n 1)"
+}
+
+################################################################################
+# Install Allure CLI
+################################################################################
+
+install_allure() {
+    log_info "Installing Allure CLI..."
+
+    ALLURE_VERSION="2.25.0"
+    ALLURE_TGZ="allure-${ALLURE_VERSION}.tgz"
+    ALLURE_URL="https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/${ALLURE_TGZ}"
+
+    # Download Allure
+    cd /tmp
+    wget -q $ALLURE_URL
+
+    # Extract to /opt
+    tar -zxf $ALLURE_TGZ -C /opt/
+    ln -sf /opt/allure-${ALLURE_VERSION}/bin/allure /usr/bin/allure
+
+    # Cleanup
+    rm -f $ALLURE_TGZ
+
+    # Verify installation
+    if command -v allure &> /dev/null; then
+        log_success "Allure installed: $(allure --version)"
+    else
+        log_error "Allure installation failed"
+        exit 1
+    fi
 }
 
 ################################################################################
@@ -483,6 +514,7 @@ main() {
     install_essential_tools
     install_docker
     install_java
+    install_allure
     install_jenkins
     configure_system_resources
     setup_backup_directory

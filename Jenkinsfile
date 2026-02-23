@@ -11,6 +11,8 @@ pipeline {
         DOCKER_TAG = "${env.BUILD_NUMBER}"
         RESULTS_DIR = "${env.WORKSPACE}/results"
         LOGS_DIR = "${env.WORKSPACE}/logs"
+        ALLURE_RESULTS_DIR = "${env.WORKSPACE}/allure-results"
+        ALLURE_REPORT_DIR = "${env.WORKSPACE}/allure-report"
         ELASTIC_ENDPOINT = "http://localhost:9200"
         PROJECT_NAME = "RF-Automation"
     }
@@ -60,8 +62,12 @@ pipeline {
                 sh '''
                     mkdir -p ${RESULTS_DIR}
                     mkdir -p ${LOGS_DIR}
+                    mkdir -p ${ALLURE_RESULTS_DIR}
+                    mkdir -p ${ALLURE_REPORT_DIR}
                     rm -rf ${RESULTS_DIR}/*
                     rm -rf ${LOGS_DIR}/*
+                    rm -rf ${ALLURE_RESULTS_DIR}/*
+                    rm -rf ${ALLURE_REPORT_DIR}/*
                 '''
 
                 // Verify prerequisites
@@ -133,16 +139,19 @@ pipeline {
                     fi
 
                     # Run tests in Docker with host network mode
+                    # Enable Allure listener for result collection
                     docker run --rm \
                         --network host \
                         -v ${RESULTS_DIR}:/app/results \
                         -v ${LOGS_DIR}:/app/logs \
+                        -v ${ALLURE_RESULTS_DIR}:/app/allure-results \
                         -e LOG_LEVEL=${LOG_LEVEL} \
                         ${DOCKER_IMAGE}:${DOCKER_TAG} \
                         --outputdir results \
                         --loglevel ${LOG_LEVEL} \
                         --timestampoutputs \
                         --name "${PROJECT_NAME}_Build_${BUILD_NUMBER}" \
+                        --listener allure_robotframework \
                         ${TEST_PATH}
                 '''
             }
@@ -187,6 +196,33 @@ pipeline {
             }
         }
 
+        stage('Generate Allure Report') {
+            steps {
+                script {
+                    echo "Generating Allure report..."
+                }
+
+                sh '''
+                    # Check if allure-results exist
+                    if [ -d ${ALLURE_RESULTS_DIR} ] && [ "$(ls -A ${ALLURE_RESULTS_DIR})" ]; then
+                        echo "Allure results found, generating report..."
+
+                        # Generate Allure report using Docker container
+                        docker run --rm \
+                            -v ${ALLURE_RESULTS_DIR}:/app/allure-results \
+                            -v ${ALLURE_REPORT_DIR}:/app/allure-report \
+                            ${DOCKER_IMAGE}:${DOCKER_TAG} \
+                            bash -c "allure generate /app/allure-results -o /app/allure-report --clean"
+
+                        echo "Allure report generated successfully"
+                        ls -lh ${ALLURE_REPORT_DIR}/
+                    else
+                        echo "WARNING: No Allure results found"
+                    fi
+                '''
+            }
+        }
+
         stage('Archive Artifacts') {
             steps {
                 script {
@@ -201,6 +237,25 @@ pipeline {
                 // Archive logs
                 archiveArtifacts artifacts: 'logs/*.log',
                                  allowEmptyArchive: true
+
+                // Archive Allure report
+                archiveArtifacts artifacts: 'allure-report/**/*',
+                                 allowEmptyArchive: true
+
+                // Publish Allure report (requires Allure Jenkins plugin)
+                script {
+                    try {
+                        allure([
+                            includeProperties: false,
+                            jdk: '',
+                            properties: [],
+                            reportBuildPolicy: 'ALWAYS',
+                            results: [[path: 'allure-results']]
+                        ])
+                    } catch (Exception e) {
+                        echo "Allure plugin not available: ${e.message}"
+                    }
+                }
 
                 // Publish Robot Framework results (requires Robot Framework plugin)
                 script {
