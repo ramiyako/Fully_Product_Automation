@@ -1,0 +1,121 @@
+# RF Automation Infrastructure - Git Ignore File
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.venv
+
+# Robot Framework
+results/
+logs/
+output.xml
+log.html
+report.html
+selenium-screenshot-*.png
+*_output.xml
+*_log.html
+*_report.html
+
+# Docker
+*.tar
+*.tar.gz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jenkins
+.jenkins/
+jenkins_home/
+
+# Elasticsearch Data
+infra/es_data/
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Temporary Files
+*.tmp
+*.temp
+.cache/
+
+# OS
+Thumbs.db
+.DS_Store
+.directory
+
+# Sensitive Data
+credentials.txt
+secrets.yaml
+*.key
+*.pem
+*.crt
+
+# Test Artifacts
+screenshots/
+videos/
+*.pcap
+
+# Backup Files
+*.bak
+*.backup
+*~
+
+# Editor Config (keep)
+!.editorconfig
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+
+# Local configuration overrides
+local_config.py
+local_settings.py
+
+# Database dumps
+*.sql
+*.db
+*.sqlite
+*.sqlite3

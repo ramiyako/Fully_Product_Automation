@@ -1,0 +1,109 @@
+# RF Automation Infrastructure - Python Dependencies
+# Professional requirements file with version pinning for reproducibility
+
+# ============================================================================
+# Robot Framework Core
+# ============================================================================
+robotframework==7.0
+robotframework-pythonlibcore==4.4.1
+
+# ============================================================================
+# Test Libraries
+# ============================================================================
+# HTTP/REST API testing
+robotframework-requests==0.9.6
+requests==2.31.0
+
+# SSH and remote execution
+robotframework-sshlibrary==3.8.0
+paramiko==3.4.0
+
+# Serial communication (for RF equipment)
+pyserial==3.5
+
+# Network utilities
+scapy==2.5.0
+
+# ============================================================================
+# Elasticsearch Integration
+# ============================================================================
+elasticsearch==8.12.0
+elasticsearch-dsl==8.12.0
+
+# ============================================================================
+# Data Processing
+# ============================================================================
+# XML parsing (Robot Framework results)
+lxml==5.1.0
+
+# JSON handling
+jsonschema==4.21.1
+
+# Date/time handling
+python-dateutil==2.8.2
+
+# Data analysis
+pandas==2.2.0
+numpy==1.26.4
+
+# ============================================================================
+# Utilities
+# ============================================================================
+# YAML configuration
+pyyaml==6.0.1
+
+# Environment variables
+python-dotenv==1.0.1
+
+# Logging
+loguru==0.7.2
+
+# Retry logic
+tenacity==8.2.3
+
+# Progress bars
+tqdm==4.66.1
+
+# ============================================================================
+# Testing & Quality
+# ============================================================================
+# Unit testing
+pytest==8.0.0
+pytest-cov==4.1.0
+
+# Code quality
+pylint==3.0.3
+black==24.1.1
+isort==5.13.2
+
+# Type checking
+mypy==1.8.0
+
+# ============================================================================
+# Development Tools
+# ============================================================================
+# Interactive debugging
+ipython==8.20.0
+ipdb==0.13.13
+
+# Documentation
+sphinx==7.2.6
+sphinx-rtd-theme==2.0.0
+
+# ============================================================================
+# Monitoring & Performance
+# ============================================================================
+# Performance monitoring
+psutil==5.9.8
+
+# HTTP client with metrics
+httpx==0.26.0
+
+# ============================================================================
+# Optional: Additional RF Libraries (uncomment as needed)
+# ============================================================================
+# robotframework-selenium2library==3.0.0
+# robotframework-appiumlibrary==2.0.0
+# robotframework-databaselibrary==1.4.0
+# robotframework-ftplibrary==1.9
+# robotframework-imaplibrary==0.4.6
