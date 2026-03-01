@@ -316,58 +316,54 @@ pipeline {
                 }
             }
         }
-
-        stage('Generate Allure Report') {
-            when {
-                expression { params.GENERATE_ALLURE_REPORT }
-            }
-            steps {
-                echo 'Generating Allure report...'
-
-                script {
-                    allure([
-                        includeProperties: false,
-                        jdk: '',
-                        results: [[path: 'allure-results']],
-                        reportBuildPolicy: 'ALWAYS'
-                    ])
-                }
-            }
-        }
-
-        stage('Upload to Elasticsearch') {
-            when {
-                expression { params.UPLOAD_TO_ELASTICSEARCH }
-            }
-            steps {
-                echo 'Verifying Elasticsearch upload...'
-
-                script {
-                    // Query Elasticsearch for recent results
-                    def esQuery = sh(
-                        script: '''
-                            curl -s -X GET "http://localhost:9200/rf-automation-*/_search?size=10&sort=@timestamp:desc" \
-                            -H 'Content-Type: application/json' \
-                            -d '{
-                                "query": {
-                                    "match": {
-                                        "build_number": "'${BUILD_NUMBER}'"
-                                    }
-                                }
-                            }'
-                        ''',
-                        returnStdout: true
-                    )
-
-                    echo "Elasticsearch query result: ${esQuery}"
-                }
-            }
-        }
     }
 
     post {
         always {
             echo 'Cleaning up...'
+
+            // Generate Allure Report (if enabled)
+            script {
+                if (params.GENERATE_ALLURE_REPORT && fileExists('allure-results')) {
+                    echo 'Generating Allure report...'
+                    try {
+                        allure([
+                            includeProperties: false,
+                            jdk: '',
+                            results: [[path: 'allure-results']],
+                            reportBuildPolicy: 'ALWAYS'
+                        ])
+                    } catch (Exception e) {
+                        echo "Failed to generate Allure report: ${e.message}"
+                    }
+                }
+            }
+
+            // Verify Elasticsearch upload (if enabled)
+            script {
+                if (params.UPLOAD_TO_ELASTICSEARCH) {
+                    echo 'Verifying Elasticsearch upload...'
+                    try {
+                        def esQuery = sh(
+                            script: '''
+                                curl -s -X GET "http://localhost:9200/rf-automation-*/_search?size=10&sort=@timestamp:desc" \
+                                -H 'Content-Type: application/json' \
+                                -d '{
+                                    "query": {
+                                        "match": {
+                                            "build_number": "'${BUILD_NUMBER}'"
+                                        }
+                                    }
+                                }'
+                            ''',
+                            returnStdout: true
+                        )
+                        echo "Elasticsearch query result: ${esQuery}"
+                    } catch (Exception e) {
+                        echo "Failed to query Elasticsearch: ${e.message}"
+                    }
+                }
+            }
 
             // Stop and remove Docker containers
             sh '''
