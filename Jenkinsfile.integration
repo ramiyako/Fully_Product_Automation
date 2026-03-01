@@ -39,7 +39,7 @@ pipeline {
         )
         booleanParam(
             name: 'GENERATE_ALLURE_REPORT',
-            defaultValue: true,
+            defaultValue: false,
             description: 'Generate Allure test report'
         )
     }
