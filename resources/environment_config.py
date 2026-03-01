@@ -205,7 +205,10 @@ def get_config(reload: bool = False, config_file: Optional[str] = None) -> Envir
     if _config is None or reload:
         # Try to find config file in standard locations
         if config_file is None:
+            # Project root is one level up from this file's directory (resources/)
+            _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             for path in [
+                os.path.join(_project_root, 'config', 'integration.env'),
                 'config/integration.env',
                 '/etc/rf-automation/integration.env',
                 os.path.expanduser('~/.rf-automation/integration.env')

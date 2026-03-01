@@ -35,10 +35,16 @@ ${DEFAULT_SPAN}       10000000   # 10 MHz
 #==============================================================================
 
 Verify Lab Network
-    [Documentation]    Verify connectivity to laboratory network
+    [Documentation]    Verify connectivity to laboratory network (skipped in mock mode)
     [Arguments]    ${timeout}=10
 
     Log    Verifying laboratory network connectivity    level=INFO
+
+    ${is_mock}=    Is Mock Mode
+    IF    ${is_mock}
+        Log    Mock mode - skipping Lab VLAN verification    level=INFO
+        RETURN
+    END
 
     ${result}=    Run Process    ip    route    get    192.168.50.1
     Should Contain    ${result.stdout}    192.168.50
@@ -47,8 +53,14 @@ Verify Lab Network
     Log    Lab network verified    level=INFO
 
 Ping Equipment
-    [Documentation]    Ping RF equipment to verify network connectivity
+    [Documentation]    Ping RF equipment to verify network connectivity (skipped in mock mode)
     [Arguments]    ${equipment_name}
+
+    ${is_mock}=    Is Mock Mode
+    IF    ${is_mock}
+        Log    Mock mode - skipping ping for ${equipment_name}    level=INFO
+        RETURN
+    END
 
     ${ip}=    Get Equipment IP    ${equipment_name}
 
@@ -59,6 +71,13 @@ Ping Equipment
     ...    msg=${equipment_name} not reachable at ${ip}
 
     Log    ${equipment_name} is reachable    level=INFO
+
+Is Mock Mode
+    [Documentation]    Check if running in mock equipment mode
+    ${is_mock}=    Evaluate
+    ...    sys.path.insert(0, '${CURDIR}') or __import__('environment_config').get_config().use_mock_equipment
+    ...    modules=sys
+    RETURN    ${is_mock}
 
 Get Equipment IP
     [Documentation]    Get IP address for specified equipment

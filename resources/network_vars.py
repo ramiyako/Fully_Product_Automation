@@ -14,11 +14,21 @@ Set USE_MOCK_EQUIPMENT=true in config/integration.env to use mock equipment.
 from typing import Dict, Tuple
 
 # Try to import environment config (available in integration mode)
+# Supports both package-relative import and standalone execution (e.g. Robot Framework Variables directive)
 try:
     from .environment_config import get_config
     _env_config_available = True
-except ImportError:
-    _env_config_available = False
+except (ImportError, SystemError):
+    try:
+        import os as _os
+        import sys as _sys
+        _current_dir = _os.path.dirname(_os.path.abspath(__file__))
+        if _current_dir not in _sys.path:
+            _sys.path.insert(0, _current_dir)
+        from environment_config import get_config
+        _env_config_available = True
+    except ImportError:
+        _env_config_available = False
 
 # ============================================================================
 # Equipment IP Addresses (Lab VLAN: 192.168.50.0/24)
