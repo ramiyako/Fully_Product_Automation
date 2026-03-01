@@ -241,16 +241,6 @@ pipeline {
                 always {
                     // Archive PoPo test results
                     archiveArtifacts artifacts: 'results/popo_*.{xml,html}', allowEmptyArchive: true
-
-                    // Publish Robot Framework results
-                    robot(
-                        outputPath: 'results',
-                        outputFileName: 'popo_output.xml',
-                        reportFileName: 'popo_report.html',
-                        logFileName: 'popo_log.html',
-                        passThreshold: 90.0,
-                        unstableThreshold: 50.0
-                    )
                 }
             }
         }
@@ -303,16 +293,6 @@ pipeline {
                 always {
                     // Archive functional test results
                     archiveArtifacts artifacts: 'results/functional_*.{xml,html}', allowEmptyArchive: true
-
-                    // Publish Robot Framework results
-                    robot(
-                        outputPath: 'results',
-                        outputFileName: 'functional_output.xml',
-                        reportFileName: 'functional_report.html',
-                        logFileName: 'functional_log.html',
-                        passThreshold: 80.0,
-                        unstableThreshold: 50.0
-                    )
                 }
             }
         }

@@ -194,7 +194,7 @@ Send SCPI Command
     [Arguments]    ${equipment_name}    ${command}
 
     Log    Sending to ${equipment_name}: ${command}    level=DEBUG
-    Send SCPI Command    ${equipment_name}    ${command}
+    SCPIEquipment.Send SCPI Command    ${equipment_name}    ${command}
     Log    Command sent: ${command}    level=DEBUG
 
 Query Equipment
