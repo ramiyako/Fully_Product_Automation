@@ -79,6 +79,21 @@ pipeline {
         stage('Environment Setup') {
             steps {
                 script {
+                    // Enable HTML rendering in build descriptions
+                    try {
+                        def formatter = Jenkins.instance.getMarkupFormatter()
+                        if (formatter.class.simpleName == 'EscapedMarkupFormatter') {
+                            Jenkins.instance.setMarkupFormatter(
+                                new hudson.markup.RawHtmlMarkupFormatter(false)
+                            )
+                            Jenkins.instance.save()
+                            echo '✓ Enabled HTML markup formatter for build descriptions'
+                        }
+                    } catch (Exception e) {
+                        echo "Note: Could not auto-set markup formatter: ${e.message}"
+                        echo "Set manually: Manage Jenkins → Security → Markup Formatter → Safe HTML"
+                    }
+
                     echo "========================================="
                     echo "RF Automation - Integration Pipeline"
                     echo "========================================="

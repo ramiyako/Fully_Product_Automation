@@ -159,6 +159,21 @@ else
     log_info "Skipping plugin installation"
 fi
 
+# Enable HTML Markup Formatter for build descriptions
+log_step "Enabling HTML Markup Formatter"
+
+log_info "Setting Jenkins Markup Formatter to Safe HTML..."
+GROOVY_SCRIPT='import hudson.markup.RawHtmlMarkupFormatter; Jenkins.instance.setMarkupFormatter(new RawHtmlMarkupFormatter(false)); Jenkins.instance.save(); println("OK")'
+
+MARKUP_RESULT=$(jenkins_cli -X POST "$JENKINS_URL/scriptText" --data-urlencode "script=$GROOVY_SCRIPT" 2>/dev/null) || true
+
+if echo "$MARKUP_RESULT" | grep -q "OK"; then
+    log_success "HTML Markup Formatter enabled"
+else
+    log_warning "Could not set markup formatter automatically"
+    log_info "Set manually: Manage Jenkins → Security → Markup Formatter → Safe HTML"
+fi
+
 # Configure Elasticsearch index template
 log_step "Configuring Elasticsearch Index Template"
 
