@@ -216,6 +216,11 @@ pipeline {
                             --listener allure_robotframework:allure-results \
                     '''
 
+                    // Add Elasticsearch listener if enabled
+                    if (params.UPLOAD_TO_ELASTICSEARCH) {
+                        robotCmd += ' --listener resources.ElasticsearchListener'
+                    }
+
                     // Add tags if specified
                     if (params.TEST_TAGS && params.TEST_SUITE == 'Custom (use tags)') {
                         params.TEST_TAGS.split(' ').each { tag ->
