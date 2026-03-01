@@ -200,7 +200,7 @@ pipeline {
 
         stage('PoPo Tests') {
             when {
-                expression { false }  // Temporarily skip PoPo tests
+                expression { params.TEST_SUITE == 'All Tests' || params.TEST_SUITE == 'PoPo Tests Only' }
             }
             steps {
                 echo 'Running Proof of Platform tests...'
