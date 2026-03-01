@@ -350,42 +350,16 @@ pipeline {
                             }
                             echo '✓ Allure report generated successfully'
 
-                            // Publish HTML report to Jenkins (with timeout protection)
-                            try {
-                                timeout(time: 30, unit: 'SECONDS') {
-                                    publishHTML([
-                                        allowMissing: false,
-                                        alwaysLinkToLastBuild: true,
-                                        keepAll: true,
-                                        reportDir: 'allure-report',
-                                        reportFiles: 'index.html',
-                                        reportName: 'Allure Report',
-                                        reportTitles: ''
-                                    ])
-                                    echo '✓ Allure report published - click "Allure Report" in Jenkins sidebar'
-                                }
-                            } catch (Exception publishError) {
-                                echo "⚠ Failed to publish HTML report: ${publishError.message}"
-                                echo "Report is still archived as artifact for manual viewing"
-                            }
+                            // Archive the report immediately
+                            archiveArtifacts artifacts: 'allure-report/**/*', allowEmptyArchive: false
+                            echo '✓ Allure report archived'
+                            echo "View at: http://localhost:8080/job/RF-Automation-Integration/${env.BUILD_NUMBER}/artifact/allure-report/index.html"
                         } catch (Exception e) {
                             echo "✗ Failed to generate Allure report: ${e.message}"
                         }
                     } else {
                         echo 'No allure-results found, skipping report generation'
                     }
-                }
-            }
-
-            // Also archive as backup
-            script {
-                def hasReport = sh(
-                    script: 'test -d allure-report && echo "yes" || echo "no"',
-                    returnStdout: true
-                ).trim()
-
-                if (hasReport == 'yes') {
-                    archiveArtifacts artifacts: 'allure-report/**/*', allowEmptyArchive: true
                 }
             }
 
