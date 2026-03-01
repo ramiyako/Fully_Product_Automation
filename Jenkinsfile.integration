@@ -339,8 +339,13 @@ pipeline {
                             timeout(time: 2, unit: 'MINUTES') {
                                 sh '''
                                     echo "Running allure generate..."
+                                    echo "Current directory: $(pwd)"
+                                    echo "Allure-results contents:"
+                                    ls -la allure-results/ | head -10
                                     allure generate allure-results -o allure-report --clean
                                     echo "Allure generation completed"
+                                    echo "Allure-report contents:"
+                                    ls -la allure-report/ | head -10
                                 '''
                             }
                             echo '✓ Allure report generated successfully'
