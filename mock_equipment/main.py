@@ -239,7 +239,7 @@ def main():
     logger.info(f"Starting HTTP server on {host}:{port}")
 
     uvicorn.run(
-        "mock_equipment.main:app",
+        "main:app",
         host=host,
         port=port,
         log_level="info"

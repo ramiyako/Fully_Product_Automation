@@ -142,6 +142,10 @@ pipeline {
 
                 sh '''
                     cd infra
+                    # Stop and remove any existing containers
+                    docker compose -f docker-compose.integration.yml down --remove-orphans
+
+                    # Start fresh containers
                     docker compose -f docker-compose.integration.yml up -d
                 '''
 
@@ -364,6 +368,12 @@ pipeline {
     post {
         always {
             echo 'Cleaning up...'
+
+            // Stop and remove Docker containers
+            sh '''
+                cd infra
+                docker compose -f docker-compose.integration.yml down --remove-orphans || true
+            '''
 
             // Archive all test artifacts
             archiveArtifacts artifacts: 'results/**/*', allowEmptyArchive: true
