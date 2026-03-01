@@ -235,9 +235,16 @@ if [ "$SKIP_JENKINS" = false ]; then
         log_info "Cleaned old Jenkins configuration, updating apt..."
         apt-get update -qq
 
-        # Add Jenkins GPG key (official method - keep as .asc, don't dearmor)
-        curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
-          tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+        # Add Jenkins GPG key (using the latest 2026 key - official current key)
+        log_info "Downloading Jenkins GPG key..."
+        wget -q -O /usr/share/keyrings/jenkins-keyring.asc \
+          https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+
+        # Verify the key was downloaded
+        if [ ! -f /usr/share/keyrings/jenkins-keyring.asc ]; then
+            log_error "Failed to download Jenkins GPG key"
+            exit 1
+        fi
 
         # Add Jenkins repository with signed-by pointing to .asc file
         echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
@@ -416,6 +423,21 @@ if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
 else
     log_warning "No Allure results found, skipping report generation"
 fi
+
+###############################################################################
+# Phase 8: Jenkins and ELK Stack Configuration
+###############################################################################
+log_step "Phase 8: Jenkins and ELK Stack Configuration"
+
+log_info "Waiting for services to be fully ready..."
+sleep 15
+
+log_info "Configuring Jenkins pipeline job and ELK stack..."
+bash "$SCRIPT_DIR/configure_jenkins.sh" \
+    --jenkins-url=http://localhost:8080 \
+    --project-root="$PROJECT_ROOT" || log_warning "Jenkins configuration had some issues (may need manual setup)"
+
+log_success "Jenkins and ELK configuration completed"
 
 ###############################################################################
 # Completion

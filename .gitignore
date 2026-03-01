@@ -47,6 +47,12 @@ selenium-screenshot-*.png
 *_log.html
 *_report.html
 
+# Allure
+allure-results/
+allure-report/
+.allure/
+*.allure
+
 # Docker
 *.tar
 *.tar.gz
@@ -62,6 +68,7 @@ selenium-screenshot-*.png
 # Jenkins
 .jenkins/
 jenkins_home/
+jenkins_initial_password.txt
 
 # Elasticsearch Data
 infra/es_data/

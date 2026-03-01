@@ -1,0 +1,106 @@
+{
+  "index_patterns": ["rf-automation-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index": {
+        "refresh_interval": "5s"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "build_number": {
+          "type": "keyword"
+        },
+        "test_suite": {
+          "type": "keyword"
+        },
+        "test_case": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "status": {
+          "type": "keyword"
+        },
+        "duration_ms": {
+          "type": "long"
+        },
+        "error_message": {
+          "type": "text"
+        },
+        "equipment_type": {
+          "type": "keyword"
+        },
+        "equipment_ip": {
+          "type": "ip"
+        },
+        "frequency_hz": {
+          "type": "double"
+        },
+        "power_dbm": {
+          "type": "double"
+        },
+        "measurement_value": {
+          "type": "double"
+        },
+        "measurement_unit": {
+          "type": "keyword"
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "branch": {
+          "type": "keyword"
+        },
+        "commit_sha": {
+          "type": "keyword"
+        },
+        "jenkins_url": {
+          "type": "keyword"
+        },
+        "mock_equipment": {
+          "type": "boolean"
+        },
+        "rf_physics_enabled": {
+          "type": "boolean"
+        },
+        "noise_floor_dbm": {
+          "type": "double"
+        },
+        "harmonics_detected": {
+          "type": "integer"
+        },
+        "intermodulation_detected": {
+          "type": "boolean"
+        },
+        "pass_rate": {
+          "type": "double"
+        },
+        "total_tests": {
+          "type": "integer"
+        },
+        "passed_tests": {
+          "type": "integer"
+        },
+        "failed_tests": {
+          "type": "integer"
+        },
+        "skipped_tests": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

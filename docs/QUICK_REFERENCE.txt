@@ -1,0 +1,196 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                   RF AUTOMATION INTEGRATION PIPELINE                       ║
+║                           QUICK REFERENCE CARD                             ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🚀 ONE-COMMAND SETUP                                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  git clone <repo-url>                                                       │
+│  cd Fully_Product_Automation                                                │
+│  git checkout integration                                                   │
+│  sudo bash scripts/integration_setup.sh --mode=nuc --environment=integration│
+│                                                                             │
+│  Duration: ~25 minutes | Result: Fully operational pipeline                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🌐 ACCESS URLS                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Jenkins:       http://localhost:8080                                       │
+│  Kibana:        http://localhost:5601                                       │
+│  Elasticsearch: http://localhost:9200                                       │
+│  Mock SA:       http://localhost:8001                                       │
+│  Mock SG:       http://localhost:8002                                       │
+│  Mock DUT:      http://localhost:8003                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🎛️ JENKINS - RUNNING TESTS                                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. Open Jenkins: http://localhost:8080                                     │
+│  2. Job: "RF-Automation-Integration"                                        │
+│  3. Click: "Build with Parameters"                                          │
+│  4. Select Options:                                                         │
+│     ├─ Test Suite: All / PoPo Only / Functional Only / Custom              │
+│     ├─ Test Tags: smoke, regression, sanity (optional)                     │
+│     ├─ RF Physics: Enabled (default)                                       │
+│     ├─ Noise Floor: -120 dBm (default)                                     │
+│     ├─ Upload to Elasticsearch: Checked (default)                          │
+│     └─ Generate Allure Report: Checked (default)                           │
+│  5. Click: "Build"                                                          │
+│  6. Monitor: Console Output                                                 │
+│                                                                             │
+│  Duration: 15-20 minutes for all tests                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 📊 VIEWING RESULTS                                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  OPTION A: Allure Report (Detailed)                                         │
+│  ├─ Location: Jenkins → Build → "Allure Report"                            │
+│  ├─ Features: Test steps, timing, history, trends                          │
+│  └─ Best for: Detailed test analysis, debugging failures                   │
+│                                                                             │
+│  OPTION B: Kibana Dashboard (Trends)                                        │
+│  ├─ URL: http://localhost:5601                                              │
+│  ├─ Dashboard: "RF Automation - Test Results Overview"                     │
+│  └─ Best for: Historical trends, build comparison, metrics                 │
+│                                                                             │
+│  OPTION C: Elasticsearch (Raw Data)                                         │
+│  ├─ URL: http://localhost:9200                                              │
+│  ├─ Query: curl -X GET "http://localhost:9200/rf-automation-*/_search"     │
+│  └─ Best for: Programmatic access, custom analytics, exports               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🔍 QUICK ELASTICSEARCH QUERIES                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  # Get all results from build #1                                            │
+│  curl -X GET "http://localhost:9200/rf-automation-*/_search?pretty" \      │
+│    -H 'Content-Type: application/json' \                                    │
+│    -d '{"query":{"term":{"build_number":"1"}}}'                             │
+│                                                                             │
+│  # Count failed tests                                                       │
+│  curl -X GET "http://localhost:9200/rf-automation-*/_count?pretty" \       │
+│    -H 'Content-Type: application/json' \                                    │
+│    -d '{"query":{"term":{"status":"FAIL"}}}'                                │
+│                                                                             │
+│  # Get tests from last hour                                                 │
+│  curl -X GET "http://localhost:9200/rf-automation-*/_search?pretty" \      │
+│    -H 'Content-Type: application/json' \                                    │
+│    -d '{"query":{"range":{"@timestamp":{"gte":"now-1h"}}}}'                │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🛠️ TROUBLESHOOTING                                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  # Check Jenkins status                                                     │
+│  sudo systemctl status jenkins                                              │
+│                                                                             │
+│  # Check Docker containers                                                  │
+│  docker ps -a                                                               │
+│                                                                             │
+│  # Check mock equipment health                                              │
+│  curl http://localhost:8001/health  # Spectrum Analyzer                    │
+│  curl http://localhost:8002/health  # Signal Generator                     │
+│  curl http://localhost:8003/health  # DUT                                  │
+│                                                                             │
+│  # Restart infrastructure                                                   │
+│  cd infra                                                                   │
+│  docker compose -f docker-compose.integration.yml restart                  │
+│                                                                             │
+│  # View logs                                                                │
+│  docker compose -f docker-compose.integration.yml logs -f                  │
+│                                                                             │
+│  # Reset everything                                                         │
+│  docker compose -f docker-compose.integration.yml down -v                  │
+│  sudo bash scripts/integration_setup.sh --mode=nuc --environment=integration│
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 📚 DOCUMENTATION                                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Complete Guide:       docs/END_TO_END_GUIDE.md                             │
+│  Setup Details:        docs/INTEGRATION_SETUP.md                            │
+│  Implementation:       docs/INTEGRATION_IMPLEMENTATION.md                   │
+│  Quick Reference:      docs/QUICK_REFERENCE.txt (this file)                │
+│  Project Overview:     README.md                                            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ✅ SUCCESS CHECKLIST                                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  □ Setup completed successfully (~/25 minutes)                              │
+│  □ Can access Jenkins at http://localhost:8080                              │
+│  □ Jenkins job "RF-Automation-Integration" exists                           │
+│  □ Can click "Build with Parameters" in Jenkins                             │
+│  □ Build executes successfully                                              │
+│  □ Can view Allure report in Jenkins                                        │
+│  □ Can access Kibana at http://localhost:5601                               │
+│  □ Kibana dashboard "RF Automation" is visible                              │
+│  □ Elasticsearch responds at http://localhost:9200                          │
+│  □ All mock equipment health checks pass                                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🎯 TEST SUITE OPTIONS                                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  All Tests:             Runs both PoPo and Functional tests (~20 min)      │
+│  PoPo Tests Only:       Platform validation only (~5 min)                  │
+│  Functional Tests Only: RF tests only (~15 min)                            │
+│  Custom (use tags):     Use TEST_TAGS parameter for filtering              │
+│                                                                             │
+│  Common Tags:                                                               │
+│  ├─ smoke:      Quick validation tests                                     │
+│  ├─ regression: Full regression suite                                      │
+│  ├─ sanity:     Basic functionality checks                                 │
+│  └─ critical:   Must-pass tests                                            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🔧 RF PHYSICS SIMULATION                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Enable RF Physics:                                                         │
+│  ├─ Generates realistic harmonics (2nd, 3rd order)                         │
+│  ├─ Simulates intermodulation products                                     │
+│  ├─ Adds phase noise to signals                                            │
+│  └─ Applies frequency-dependent attenuation                                │
+│                                                                             │
+│  Noise Floor Options:                                                       │
+│  ├─ -120 dBm: Ideal conditions (very low noise)                            │
+│  ├─ -110 dBm: Good conditions (low noise)                                  │
+│  ├─ -100 dBm: Moderate conditions                                          │
+│  └─ -90 dBm:  Challenging conditions (high noise)                          │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                          READY TO GET STARTED!                             ║
+║                                                                            ║
+║  Run the setup command above, then follow the documentation in:           ║
+║  docs/END_TO_END_GUIDE.md for a complete walkthrough.                     ║
+║                                                                            ║
+║  Your complete RF automation pipeline awaits! 🚀                          ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+Version: 1.0
+Date: 2026-03-01
+Maintained by: Automation Team
