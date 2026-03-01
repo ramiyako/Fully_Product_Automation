@@ -8,7 +8,7 @@ Supports frequency, power, and modulation control.
 from typing import Optional
 import logging
 
-from base_equipment import BaseEquipment
+from .base_equipment import BaseEquipment
 from state_manager import SignalGeneratorState
 
 logger = logging.getLogger(__name__)

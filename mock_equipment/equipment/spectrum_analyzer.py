@@ -9,7 +9,7 @@ from typing import Optional, List
 import logging
 import numpy as np
 
-from base_equipment import BaseEquipment
+from .base_equipment import BaseEquipment
 from state_manager import SpectrumAnalyzerState
 from rf_physics import RFPhysicsEngine, SignalSource, RFPathParameters
 

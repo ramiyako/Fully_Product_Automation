@@ -8,7 +8,7 @@ Can operate in various modes (linear, bypass, amplify).
 from typing import Optional
 import logging
 
-from base_equipment import BaseEquipment
+from .base_equipment import BaseEquipment
 from state_manager import DUTState
 
 logger = logging.getLogger(__name__)
