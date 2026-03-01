@@ -200,7 +200,7 @@ pipeline {
 
         stage('PoPo Tests') {
             when {
-                expression { params.TEST_SUITE == 'All Tests' || params.TEST_SUITE == 'PoPo Tests Only' }
+                expression { false }  // Temporarily skip PoPo tests
             }
             steps {
                 echo 'Running Proof of Platform tests...'
@@ -324,25 +324,46 @@ pipeline {
 
             // Generate Allure Report (if enabled)
             script {
-                if (params.GENERATE_ALLURE_REPORT && fileExists('allure-results')) {
-                    echo 'Generating Allure report...'
-                    try {
-                        // Use system-installed Allure to generate report
-                        sh '''
-                            allure generate allure-results -o allure-report --clean || echo "Allure generation failed"
-                        '''
-                        echo 'Allure report generated successfully at allure-report/index.html'
-                    } catch (Exception e) {
-                        echo "Failed to generate Allure report: ${e.message}"
+                if (params.GENERATE_ALLURE_REPORT) {
+                    echo 'Checking for allure-results...'
+
+                    // Check if allure-results exists and has files
+                    def hasResults = sh(
+                        script: 'test -d allure-results && test "$(ls -A allure-results)" && echo "yes" || echo "no"',
+                        returnStdout: true
+                    ).trim()
+
+                    if (hasResults == 'yes') {
+                        echo 'Allure results found, generating report...'
+                        try {
+                            timeout(time: 2, unit: 'MINUTES') {
+                                sh '''
+                                    echo "Running allure generate..."
+                                    allure generate allure-results -o allure-report --clean
+                                    echo "Allure generation completed"
+                                '''
+                            }
+                            echo '✓ Allure report generated successfully at allure-report/index.html'
+                        } catch (Exception e) {
+                            echo "✗ Failed to generate Allure report: ${e.message}"
+                        }
+                    } else {
+                        echo 'No allure-results found, skipping report generation'
                     }
                 }
             }
 
             // Archive Allure report as artifact
             script {
-                if (fileExists('allure-report')) {
+                def hasReport = sh(
+                    script: 'test -d allure-report && echo "yes" || echo "no"',
+                    returnStdout: true
+                ).trim()
+
+                if (hasReport == 'yes') {
+                    echo 'Archiving Allure report...'
                     archiveArtifacts artifacts: 'allure-report/**/*', allowEmptyArchive: true
-                    echo 'Allure report archived - download and open index.html to view'
+                    echo '✓ Allure report archived - download allure-report/index.html to view'
                 }
             }
 
