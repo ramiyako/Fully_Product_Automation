@@ -226,6 +226,7 @@ if [ "$SKIP_JENKINS" = false ]; then
         # Clean up any old Jenkins repository configuration
         rm -f /etc/apt/sources.list.d/jenkins.list
         rm -f /usr/share/keyrings/jenkins-keyring.asc
+        rm -f /usr/share/keyrings/jenkins-keyring.gpg
 
         # Clean apt cache to remove old repository references
         apt-get clean
@@ -234,11 +235,12 @@ if [ "$SKIP_JENKINS" = false ]; then
         log_info "Cleaned old Jenkins configuration, updating apt..."
         apt-get update -qq
 
-        # Add Jenkins repository with correct GPG key
+        # Add Jenkins GPG key (official method - keep as .asc, don't dearmor)
         curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
-          gpg --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg
+          tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
 
-        echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] \
+        # Add Jenkins repository with signed-by pointing to .asc file
+        echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
           https://pkg.jenkins.io/debian-stable binary/" | \
           tee /etc/apt/sources.list.d/jenkins.list > /dev/null
 
