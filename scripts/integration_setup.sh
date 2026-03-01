@@ -203,8 +203,17 @@ if [ "$SKIP_JENKINS" = false ]; then
     if command -v jenkins &> /dev/null || systemctl is-active --quiet jenkins; then
         log_info "Jenkins already installed"
     else
-        log_info "Installing Java 17 (required for Jenkins)..."
+        log_info "Installing Java 17 (required for Jenkins and Allure)..."
         apt-get install -y openjdk-17-jdk
+
+        log_info "Installing Allure command-line tool..."
+        # Download and install Allure
+        ALLURE_VERSION="2.25.0"
+        wget -q https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz -O /tmp/allure.tgz
+        tar -xzf /tmp/allure.tgz -C /opt/
+        ln -sf /opt/allure-${ALLURE_VERSION}/bin/allure /usr/local/bin/allure
+        rm /tmp/allure.tgz
+        log_success "Allure ${ALLURE_VERSION} installed: $(allure --version)"
 
         log_info "Installing Jenkins..."
 
@@ -373,7 +382,18 @@ done
 # Run PoPo tests
 log_info "Running Proof of Platform tests..."
 cd "$PROJECT_ROOT"
-su - "$ACTUAL_USER" -c "cd '$PROJECT_ROOT' && source venv/bin/activate && USE_MOCK_EQUIPMENT=true robot --outputdir results tests/integration_popo.robot" || log_warning "PoPo tests had failures (check results)"
+su - "$ACTUAL_USER" -c "cd '$PROJECT_ROOT' && source venv/bin/activate && USE_MOCK_EQUIPMENT=true robot --outputdir results --listener allure_robotframework:allure-results tests/integration_popo.robot" || log_warning "PoPo tests had failures (check results)"
+
+# Generate Allure report
+if [ -d "allure-results" ] && [ "$(ls -A allure-results)" ]; then
+    log_info "Generating Allure report..."
+    su - "$ACTUAL_USER" -c "cd '$PROJECT_ROOT' && allure generate allure-results --clean -o allure-report" || log_warning "Failed to generate Allure report"
+    if [ -d "allure-report" ]; then
+        log_success "Allure report generated: $PROJECT_ROOT/allure-report/index.html"
+    fi
+else
+    log_warning "No Allure results found, skipping report generation"
+fi
 
 ###############################################################################
 # Completion
@@ -405,7 +425,12 @@ echo ""
 
 echo -e "${GREEN}To run tests:${NC}"
 echo -e "  source venv/bin/activate"
-echo -e "  robot --outputdir results tests/integration_popo.robot"
+echo -e "  robot --outputdir results --listener allure_robotframework:allure-results tests/integration_popo.robot"
+echo ""
+
+echo -e "${GREEN}To generate Allure report:${NC}"
+echo -e "  allure generate allure-results --clean -o allure-report"
+echo -e "  allure open allure-report"
 echo ""
 
 echo -e "${GREEN}To view logs:${NC}"
