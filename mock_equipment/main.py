@@ -8,6 +8,7 @@ for mock RF equipment (Spectrum Analyzer, Signal Generator, DUT).
 import asyncio
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -15,11 +16,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
 
-from .equipment.signal_generator import SignalGenerator
-from .equipment.spectrum_analyzer import SpectrumAnalyzer
-from .equipment.dut import DUT
-from .scpi_server import SCPIServer
-from .rf_physics import SignalSource
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from equipment.signal_generator import SignalGenerator
+from equipment.spectrum_analyzer import SpectrumAnalyzer
+from equipment.dut import DUT
+from scpi_server import SCPIServer
+from rf_physics import SignalSource
 
 # Configure logging
 logging.basicConfig(

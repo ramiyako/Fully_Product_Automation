@@ -9,8 +9,13 @@ from typing import Dict, Optional, Tuple
 from abc import ABC, abstractmethod
 import logging
 import re
+import sys
+import os
 
-from .state_manager import StateManager
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from state_manager import StateManager
 
 logger = logging.getLogger(__name__)
 
