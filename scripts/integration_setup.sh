@@ -116,6 +116,12 @@ log_info "Project Root: $PROJECT_ROOT"
 ###############################################################################
 log_step "Phase 1: System Preparation"
 
+# Clean up any broken Jenkins repository FIRST (before apt-get update)
+log_info "Cleaning up any old/broken repository configurations..."
+rm -f /etc/apt/sources.list.d/jenkins.list
+rm -f /usr/share/keyrings/jenkins-keyring.asc
+rm -f /usr/share/keyrings/jenkins-keyring.gpg
+
 log_info "Updating system packages..."
 apt-get update -qq
 
