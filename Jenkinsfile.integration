@@ -129,7 +129,7 @@ pipeline {
 
                 sh '''
                     cd infra
-                    docker compose -f docker-compose.integration.yml build
+                    docker compose -f docker-compose.integration.yml build --no-cache
                 '''
 
                 echo 'Mock equipment images built'
