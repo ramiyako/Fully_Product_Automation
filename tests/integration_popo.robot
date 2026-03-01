@@ -8,7 +8,6 @@ Documentation     Proof of Platform (PoPo) Tests
 ...               - Complete data flow
 
 Resource          ../resources/rf_keywords.resource
-Library           ElasticsearchListener.py
 Library           OperatingSystem
 Library           RequestsLibrary
 Library           Collections

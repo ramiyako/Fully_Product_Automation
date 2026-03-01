@@ -68,16 +68,18 @@ Get Equipment IP
     Should Not Be Equal    ${ip}    ${None}
     ...    msg=Equipment ${equipment_name} not found in configuration
 
-    [Return]    ${ip}
+    RETURN    ${ip}
 
 Get Equipment Endpoint
     [Documentation]    Get IP address and port for specified equipment
     ...                Works with both real and mock equipment
     [Arguments]    ${equipment_name}
 
-    ${ip}    ${port}=    Evaluate    get_equipment_endpoint("${equipment_name}")    modules=network_vars
+    ${ip}    ${port}=    Evaluate
+    ...    sys.path.insert(0, '${CURDIR}') or __import__('network_vars').get_equipment_endpoint("${equipment_name}")
+    ...    modules=sys
 
-    [Return]    ${ip}    ${port}
+    RETURN    ${ip}    ${port}
 
 #==============================================================================
 # Equipment Connection Keywords
@@ -184,7 +186,7 @@ Query Equipment
     ${result}=    Query SCPI    ${equipment_name}    ${query}
     Log    Response from ${equipment_name}: ${result}    level=DEBUG
 
-    [Return]    ${result}
+    RETURN    ${result}
 
 Reset Equipment
     [Documentation]    Send reset command to equipment
@@ -259,7 +261,7 @@ Measure Peak Power
 
     Log    Measured Power: ${power} dBm    level=INFO
 
-    [Return]    ${power}
+    RETURN    ${power}
 
 Measure Peak Frequency
     [Documentation]    Measure frequency of peak signal
@@ -277,7 +279,7 @@ Measure Peak Frequency
 
     Log    Measured Frequency: ${freq} Hz    level=INFO
 
-    [Return]    ${freq}
+    RETURN    ${freq}
 
 #==============================================================================
 # Signal Generator Keywords
