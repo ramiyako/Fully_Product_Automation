@@ -123,6 +123,35 @@ pipeline {
             }
         }
 
+        stage('Build Mock Equipment') {
+            steps {
+                echo 'Building mock equipment Docker images...'
+
+                sh '''
+                    cd infra
+                    docker compose -f docker-compose.integration.yml build
+                '''
+
+                echo 'Mock equipment images built'
+            }
+        }
+
+        stage('Start Infrastructure') {
+            steps {
+                echo 'Starting infrastructure services...'
+
+                sh '''
+                    cd infra
+                    docker compose -f docker-compose.integration.yml up -d
+                '''
+
+                echo 'Waiting for services to initialize...'
+                sleep 20
+
+                echo 'Infrastructure started'
+            }
+        }
+
         stage('Infrastructure Check') {
             steps {
                 echo 'Checking infrastructure services...'
