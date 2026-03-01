@@ -221,6 +221,13 @@ if [ "$SKIP_JENKINS" = false ]; then
         rm -f /etc/apt/sources.list.d/jenkins.list
         rm -f /usr/share/keyrings/jenkins-keyring.asc
 
+        # Clean apt cache to remove old repository references
+        apt-get clean
+        rm -rf /var/lib/apt/lists/*
+
+        log_info "Cleaned old Jenkins configuration, updating apt..."
+        apt-get update -qq
+
         # Add Jenkins repository with correct GPG key
         curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
           gpg --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg
@@ -229,7 +236,10 @@ if [ "$SKIP_JENKINS" = false ]; then
           https://pkg.jenkins.io/debian-stable binary/" | \
           tee /etc/apt/sources.list.d/jenkins.list > /dev/null
 
+        log_info "Added new Jenkins repository, updating apt..."
         apt-get update -qq
+
+        log_info "Installing Jenkins package..."
         apt-get install -y jenkins
 
         log_success "Jenkins installed"
