@@ -217,11 +217,15 @@ if [ "$SKIP_JENKINS" = false ]; then
 
         log_info "Installing Jenkins..."
 
-        # Add Jenkins repository
-        wget -q -O /usr/share/keyrings/jenkins-keyring.asc \
-          https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        # Clean up any old Jenkins repository configuration
+        rm -f /etc/apt/sources.list.d/jenkins.list
+        rm -f /usr/share/keyrings/jenkins-keyring.asc
 
-        echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+        # Add Jenkins repository with correct GPG key
+        curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
+          gpg --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg
+
+        echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg] \
           https://pkg.jenkins.io/debian-stable binary/" | \
           tee /etc/apt/sources.list.d/jenkins.list > /dev/null
 
