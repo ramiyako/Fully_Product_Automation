@@ -2,11 +2,38 @@
 
 Professional on-premise automation system for RF equipment testing using Robot Framework, Docker, Jenkins, and ELK Stack.
 
+## 🚀 Quick Start - Integration Branch
+
+**New: Test without physical hardware!**
+
+```bash
+git clone <repo-url>
+cd Fully_Product_Automation
+git checkout integration
+sudo bash scripts/integration_setup.sh --mode=nuc --environment=integration --verbose
+```
+
+**Setup time:** ~25 minutes | **Result:** Fully operational test environment with mock RF equipment
+
+👉 [Integration Setup Guide](docs/INTEGRATION_SETUP.md)
+
 ## System Overview
 
-An enterprise-grade automation infrastructure running on Intel NUC hardware, designed for controlling and testing RF equipment within a dedicated VLAN environment.
+An enterprise-grade automation infrastructure available in two modes:
 
-### Core Components
+### 🔧 Production Mode (main branch)
+- Intel NUC hardware with real RF equipment
+- Lab VLAN (192.168.50.x) connectivity
+- Physical Spectrum Analyzer, Signal Generator, DUT
+
+### 🧪 Integration Mode (integration branch)
+- **Mock RF equipment** with high-fidelity simulation
+- **No hardware required** - runs on any Linux system
+- **RF Physics Engine** - realistic harmonics, noise, intermodulation
+- **One-command deployment** - fully automated setup
+- **Complete CI/CD** - Jenkins, Elasticsearch, Kibana, Allure
+
+## Core Components
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|

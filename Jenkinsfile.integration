@@ -1,0 +1,275 @@
+pipeline {
+    agent any
+
+    environment {
+        // Integration environment configuration
+        USE_MOCK_EQUIPMENT = 'true'
+        PYTHONPATH = "${WORKSPACE}"
+
+        // Elasticsearch configuration
+        ELASTICSEARCH_HOST = 'localhost'
+        ELASTICSEARCH_PORT = '9200'
+
+        // Python virtual environment
+        VENV_PATH = "${WORKSPACE}/venv"
+    }
+
+    options {
+        // Keep last 30 builds
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+
+        // Timeout for entire pipeline
+        timeout(time: 1, unit: 'HOURS')
+
+        // Add timestamps to console output
+        timestamps()
+
+        // Don't allow concurrent builds
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Environment Setup') {
+            steps {
+                script {
+                    echo "========================================="
+                    echo "RF Automation - Integration Pipeline"
+                    echo "========================================="
+                    echo "Build: ${env.BUILD_NUMBER}"
+                    echo "Branch: ${env.GIT_BRANCH}"
+                    echo "Mock Equipment: ${env.USE_MOCK_EQUIPMENT}"
+                    echo "========================================="
+                }
+
+                // Clean workspace
+                sh 'rm -rf allure-results allure-report results logs'
+
+                // Create necessary directories
+                sh 'mkdir -p allure-results allure-report results logs'
+            }
+        }
+
+        stage('Python Environment') {
+            steps {
+                echo 'Setting up Python virtual environment...'
+
+                // Remove old venv if exists
+                sh 'rm -rf ${VENV_PATH}'
+
+                // Create new virtual environment
+                sh 'python3 -m venv ${VENV_PATH}'
+
+                // Install dependencies
+                sh '''
+                    . ${VENV_PATH}/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+
+                echo 'Python environment ready'
+            }
+        }
+
+        stage('Infrastructure Check') {
+            steps {
+                echo 'Checking infrastructure services...'
+
+                script {
+                    // Check Elasticsearch
+                    def esHealthy = sh(
+                        script: 'curl -f -s http://localhost:9200/_cluster/health',
+                        returnStatus: true
+                    )
+
+                    if (esHealthy == 0) {
+                        echo '✓ Elasticsearch is healthy'
+                    } else {
+                        echo '✗ WARNING: Elasticsearch not responding'
+                    }
+
+                    // Check mock equipment
+                    def mockServices = [
+                        'Spectrum Analyzer': 8001,
+                        'Signal Generator': 8002,
+                        'DUT': 8003
+                    ]
+
+                    mockServices.each { name, port ->
+                        def healthy = sh(
+                            script: "curl -f -s http://localhost:${port}/health",
+                            returnStatus: true
+                        )
+
+                        if (healthy == 0) {
+                            echo "✓ Mock ${name} is healthy"
+                        } else {
+                            error "✗ Mock ${name} not responding on port ${port}"
+                        }
+                    }
+                }
+
+                echo 'All infrastructure services are healthy'
+            }
+        }
+
+        stage('PoPo Tests') {
+            steps {
+                echo 'Running Proof of Platform tests...'
+
+                sh '''
+                    . ${VENV_PATH}/bin/activate
+                    robot \
+                        --outputdir results \
+                        --output popo_output.xml \
+                        --log popo_log.html \
+                        --report popo_report.html \
+                        --listener allure_robotframework:allure-results \
+                        tests/integration_popo.robot
+                '''
+            }
+
+            post {
+                always {
+                    // Archive PoPo test results
+                    archiveArtifacts artifacts: 'results/popo_*.{xml,html}', allowEmptyArchive: true
+
+                    // Publish Robot Framework results
+                    robot(
+                        outputPath: 'results',
+                        outputFileName: 'popo_output.xml',
+                        reportFileName: 'popo_report.html',
+                        logFileName: 'popo_log.html',
+                        passThreshold: 90.0,
+                        unstableThreshold: 50.0
+                    )
+                }
+            }
+        }
+
+        stage('Functional Tests') {
+            steps {
+                echo 'Running RF functional tests with mock equipment...'
+
+                sh '''
+                    . ${VENV_PATH}/bin/activate
+                    robot \
+                        --outputdir results \
+                        --output functional_output.xml \
+                        --log functional_log.html \
+                        --report functional_report.html \
+                        --listener allure_robotframework:allure-results \
+                        --listener resources.ElasticsearchListener \
+                        tests/rf_functional.robot
+                '''
+            }
+
+            post {
+                always {
+                    // Archive functional test results
+                    archiveArtifacts artifacts: 'results/functional_*.{xml,html}', allowEmptyArchive: true
+
+                    // Publish Robot Framework results
+                    robot(
+                        outputPath: 'results',
+                        outputFileName: 'functional_output.xml',
+                        reportFileName: 'functional_report.html',
+                        logFileName: 'functional_log.html',
+                        passThreshold: 80.0,
+                        unstableThreshold: 50.0
+                    )
+                }
+            }
+        }
+
+        stage('Generate Allure Report') {
+            steps {
+                echo 'Generating Allure report...'
+
+                script {
+                    allure([
+                        includeProperties: false,
+                        jdk: '',
+                        results: [[path: 'allure-results']],
+                        reportBuildPolicy: 'ALWAYS'
+                    ])
+                }
+            }
+        }
+
+        stage('Upload to Elasticsearch') {
+            steps {
+                echo 'Verifying Elasticsearch upload...'
+
+                script {
+                    // Query Elasticsearch for recent results
+                    def esQuery = sh(
+                        script: '''
+                            curl -s -X GET "http://localhost:9200/rf-automation-*/_search?size=10&sort=@timestamp:desc" \
+                            -H 'Content-Type: application/json' \
+                            -d '{
+                                "query": {
+                                    "match": {
+                                        "build_number": "'${BUILD_NUMBER}'"
+                                    }
+                                }
+                            }'
+                        ''',
+                        returnStdout: true
+                    )
+
+                    echo "Elasticsearch query result: ${esQuery}"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up...'
+
+            // Archive all test artifacts
+            archiveArtifacts artifacts: 'results/**/*', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'logs/**/*', allowEmptyArchive: true
+
+            // Clean old allure results
+            sh 'find allure-results -type f -mtime +7 -delete || true'
+        }
+
+        success {
+            echo '========================================='
+            echo '✓ Integration Pipeline PASSED'
+            echo '========================================='
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo "Duration: ${currentBuild.durationString}"
+            echo '========================================='
+
+            // Send notification (optional - configure as needed)
+            // emailext subject: "Integration Tests PASSED - Build #${env.BUILD_NUMBER}",
+            //          body: "All integration tests passed successfully.",
+            //          to: "team@example.com"
+        }
+
+        failure {
+            echo '========================================='
+            echo '✗ Integration Pipeline FAILED'
+            echo '========================================='
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo "Check logs and Allure report for details"
+            echo '========================================='
+
+            // Send notification (optional - configure as needed)
+            // emailext subject: "Integration Tests FAILED - Build #${env.BUILD_NUMBER}",
+            //          body: "Integration tests failed. Check Jenkins for details.",
+            //          to: "team@example.com"
+        }
+
+        unstable {
+            echo '========================================='
+            echo '⚠ Integration Pipeline UNSTABLE'
+            echo '========================================='
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo "Some tests failed - check Allure report"
+            echo '========================================='
+        }
+    }
+}
