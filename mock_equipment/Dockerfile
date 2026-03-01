@@ -14,9 +14,8 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all application code
-COPY *.py ./
-COPY equipment/ ./equipment/
+# Copy ALL application files maintaining structure
+COPY . /app/
 
 # Expose ports
 # SCPI port (configurable via SCPI_PORT env var, default 5025)
@@ -33,6 +32,7 @@ ENV ENABLE_HARMONICS=true
 ENV ENABLE_INTERMOD=true
 ENV HARMONIC_ORDER=3
 ENV NOISE_FLOOR_DBM=-120
+ENV PYTHONPATH=/app
 
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
