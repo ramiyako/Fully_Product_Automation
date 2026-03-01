@@ -83,11 +83,37 @@ def get_equipment_config() -> Dict[str, Tuple[str, int]]:
     }
 
 
-# Maintain backward compatibility
-EQUIPMENT_LIST = {
-    name: ip
-    for name, (ip, port) in get_equipment_config().items()
-}
+# Maintain backward compatibility - use lazy evaluation
+_equipment_list_cache = None
+
+def _get_equipment_list():
+    """Lazy getter for EQUIPMENT_LIST"""
+    global _equipment_list_cache
+    if _equipment_list_cache is None:
+        _equipment_list_cache = {
+            name: ip
+            for name, (ip, port) in get_equipment_config().items()
+        }
+    return _equipment_list_cache
+
+# Property-like access for backward compatibility
+class EquipmentListProxy:
+    def __getitem__(self, key):
+        return _get_equipment_list()[key]
+
+    def get(self, key, default=None):
+        return _get_equipment_list().get(key, default)
+
+    def items(self):
+        return _get_equipment_list().items()
+
+    def keys(self):
+        return _get_equipment_list().keys()
+
+    def values(self):
+        return _get_equipment_list().values()
+
+EQUIPMENT_LIST = EquipmentListProxy()
 
 # ============================================================================
 # Equipment Communication Settings
