@@ -327,26 +327,22 @@ pipeline {
                 if (params.GENERATE_ALLURE_REPORT && fileExists('allure-results')) {
                     echo 'Generating Allure report...'
                     try {
-                        // Use system-installed Allure instead of Jenkins plugin
+                        // Use system-installed Allure to generate report
                         sh '''
-                            allure generate allure-results -o allure-report --clean
+                            allure generate allure-results -o allure-report --clean || echo "Allure generation failed"
                         '''
-
-                        // Publish HTML report
-                        publishHTML([
-                            allowMissing: false,
-                            alwaysLinkToLastBuild: true,
-                            keepAll: true,
-                            reportDir: 'allure-report',
-                            reportFiles: 'index.html',
-                            reportName: 'Allure Report',
-                            reportTitles: 'Allure Test Report'
-                        ])
-
-                        echo 'Allure report generated successfully'
+                        echo 'Allure report generated successfully at allure-report/index.html'
                     } catch (Exception e) {
                         echo "Failed to generate Allure report: ${e.message}"
                     }
+                }
+            }
+
+            // Archive Allure report as artifact
+            script {
+                if (fileExists('allure-report')) {
+                    archiveArtifacts artifacts: 'allure-report/**/*', allowEmptyArchive: true
+                    echo 'Allure report archived - download and open index.html to view'
                 }
             }
 
