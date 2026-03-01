@@ -374,11 +374,14 @@ pipeline {
                 }
             }
 
-            // Stop and remove Docker containers
-            sh '''
-                cd infra
-                docker compose -f docker-compose.integration.yml down --remove-orphans || true
-            '''
+            // Keep infrastructure running (Elasticsearch, Kibana, mock equipment)
+            // To stop manually: cd infra && docker compose -f docker-compose.integration.yml down
+            echo '========================================='
+            echo 'Infrastructure services remain running:'
+            echo '  Elasticsearch: http://localhost:9200'
+            echo '  Kibana:        http://localhost:5601'
+            echo "  Allure Report: http://localhost:8080/job/RF-Automation-Integration/${env.BUILD_NUMBER}/artifact/allure-report/index.html"
+            echo '========================================='
 
             // Archive all test artifacts
             archiveArtifacts artifacts: 'results/**/*', allowEmptyArchive: true
@@ -392,14 +395,14 @@ pipeline {
             echo '========================================='
             echo '✓ Integration Pipeline PASSED'
             echo '========================================='
-            echo "Build: ${env.BUILD_NUMBER}"
+            echo "Build:   ${env.BUILD_NUMBER}"
             echo "Duration: ${currentBuild.durationString}"
+            echo ''
+            echo 'Links:'
+            echo "  Allure:        http://localhost:8080/job/RF-Automation-Integration/${env.BUILD_NUMBER}/artifact/allure-report/index.html"
+            echo '  Kibana:        http://localhost:5601'
+            echo '  Elasticsearch: http://localhost:9200'
             echo '========================================='
-
-            // Send notification (optional - configure as needed)
-            // emailext subject: "Integration Tests PASSED - Build #${env.BUILD_NUMBER}",
-            //          body: "All integration tests passed successfully.",
-            //          to: "team@example.com"
         }
 
         failure {
@@ -407,13 +410,12 @@ pipeline {
             echo '✗ Integration Pipeline FAILED'
             echo '========================================='
             echo "Build: ${env.BUILD_NUMBER}"
-            echo "Check logs and Allure report for details"
+            echo ''
+            echo 'Links:'
+            echo "  Allure:        http://localhost:8080/job/RF-Automation-Integration/${env.BUILD_NUMBER}/artifact/allure-report/index.html"
+            echo '  Kibana:        http://localhost:5601'
+            echo '  Elasticsearch: http://localhost:9200'
             echo '========================================='
-
-            // Send notification (optional - configure as needed)
-            // emailext subject: "Integration Tests FAILED - Build #${env.BUILD_NUMBER}",
-            //          body: "Integration tests failed. Check Jenkins for details.",
-            //          to: "team@example.com"
         }
 
         unstable {
@@ -421,7 +423,11 @@ pipeline {
             echo '⚠ Integration Pipeline UNSTABLE'
             echo '========================================='
             echo "Build: ${env.BUILD_NUMBER}"
-            echo "Some tests failed - check Allure report"
+            echo ''
+            echo 'Links:'
+            echo "  Allure:        http://localhost:8080/job/RF-Automation-Integration/${env.BUILD_NUMBER}/artifact/allure-report/index.html"
+            echo '  Kibana:        http://localhost:5601'
+            echo '  Elasticsearch: http://localhost:9200'
             echo '========================================='
         }
     }
