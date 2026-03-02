@@ -291,7 +291,15 @@ pipeline {
                 echo "=========================================="
             }
 
-            // Clean up Docker resources
+            sh '''
+                echo "Updating Allure report..."
+                if [ -d "${ALLURE_RESULTS_DIR}" ] && [ "$(ls -A ${ALLURE_RESULTS_DIR} 2>/dev/null)" ]; then
+                    cp -r ${ALLURE_RESULTS_DIR}/* /opt/rf-automation/allure-results/ 2>/dev/null || true
+                    allure generate /opt/rf-automation/allure-results -o /opt/rf-automation/allure-report --clean 2>/dev/null || true
+                    echo "Allure report updated - view at http://44.203.135.53:9090"
+                fi
+            '''
+
             sh '''
                 echo "Cleaning up Docker resources..."
                 docker system prune -f --volumes || true
