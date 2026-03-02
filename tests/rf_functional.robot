@@ -244,7 +244,6 @@ Suite Initialization
     Log    ========================================    console=True
 
     Create Directory    ${OUTPUT_DIR}/screenshots
-    Set Screenshot Directory    ${OUTPUT_DIR}/screenshots
 
     # Verify network connectivity
     Verify Lab Network

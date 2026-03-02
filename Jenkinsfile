@@ -146,6 +146,13 @@ pipeline {
                         -v ${LOGS_DIR}:/app/logs \
                         -v ${ALLURE_RESULTS_DIR}:/app/allure-results \
                         -e LOG_LEVEL=${LOG_LEVEL} \
+                        -e USE_MOCK_EQUIPMENT=true \
+                        -e MOCK_SPECTRUM_ANALYZER_IP=127.0.0.1 \
+                        -e MOCK_SPECTRUM_ANALYZER_PORT=5001 \
+                        -e MOCK_SIGNAL_GENERATOR_IP=127.0.0.1 \
+                        -e MOCK_SIGNAL_GENERATOR_PORT=5002 \
+                        -e MOCK_DUT_IP=127.0.0.1 \
+                        -e MOCK_DUT_PORT=5003 \
                         ${DOCKER_IMAGE}:${DOCKER_TAG} \
                         --outputdir results \
                         --loglevel ${LOG_LEVEL} \
