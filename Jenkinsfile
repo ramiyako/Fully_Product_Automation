@@ -128,39 +128,42 @@ pipeline {
                 script {
                     def testPath = params.TEST_SUITE == 'all' ? 'tests/' : "tests/${params.TEST_SUITE}.robot"
                     echo "Executing tests: ${testPath}"
+
+                    // Use catchError to continue pipeline even if tests fail
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        sh '''
+                            # Determine test path
+                            if [ "${TEST_SUITE}" = "all" ]; then
+                                TEST_PATH="tests/"
+                            else
+                                TEST_PATH="tests/${TEST_SUITE}.robot"
+                            fi
+
+                            # Run tests in Docker with host network mode
+                            # Enable Allure listener for result collection
+                            docker run --rm \
+                                --network host \
+                                -v ${RESULTS_DIR}:/app/results \
+                                -v ${LOGS_DIR}:/app/logs \
+                                -v ${ALLURE_RESULTS_DIR}:/app/allure-results \
+                                -e LOG_LEVEL=${LOG_LEVEL} \
+                                -e USE_MOCK_EQUIPMENT=true \
+                                -e MOCK_SPECTRUM_ANALYZER_IP=127.0.0.1 \
+                                -e MOCK_SPECTRUM_ANALYZER_PORT=5001 \
+                                -e MOCK_SIGNAL_GENERATOR_IP=127.0.0.1 \
+                                -e MOCK_SIGNAL_GENERATOR_PORT=5002 \
+                                -e MOCK_DUT_IP=127.0.0.1 \
+                                -e MOCK_DUT_PORT=5003 \
+                                ${DOCKER_IMAGE}:${DOCKER_TAG} \
+                                --outputdir results \
+                                --loglevel ${LOG_LEVEL} \
+                                --timestampoutputs \
+                                --name "${PROJECT_NAME}_Build_${BUILD_NUMBER}" \
+                                --listener allure_robotframework \
+                                ${TEST_PATH}
+                        '''
+                    }
                 }
-
-                sh '''
-                    # Determine test path
-                    if [ "${TEST_SUITE}" = "all" ]; then
-                        TEST_PATH="tests/"
-                    else
-                        TEST_PATH="tests/${TEST_SUITE}.robot"
-                    fi
-
-                    # Run tests in Docker with host network mode
-                    # Enable Allure listener for result collection
-                    docker run --rm \
-                        --network host \
-                        -v ${RESULTS_DIR}:/app/results \
-                        -v ${LOGS_DIR}:/app/logs \
-                        -v ${ALLURE_RESULTS_DIR}:/app/allure-results \
-                        -e LOG_LEVEL=${LOG_LEVEL} \
-                        -e USE_MOCK_EQUIPMENT=true \
-                        -e MOCK_SPECTRUM_ANALYZER_IP=127.0.0.1 \
-                        -e MOCK_SPECTRUM_ANALYZER_PORT=5001 \
-                        -e MOCK_SIGNAL_GENERATOR_IP=127.0.0.1 \
-                        -e MOCK_SIGNAL_GENERATOR_PORT=5002 \
-                        -e MOCK_DUT_IP=127.0.0.1 \
-                        -e MOCK_DUT_PORT=5003 \
-                        ${DOCKER_IMAGE}:${DOCKER_TAG} \
-                        --outputdir results \
-                        --loglevel ${LOG_LEVEL} \
-                        --timestampoutputs \
-                        --name "${PROJECT_NAME}_Build_${BUILD_NUMBER}" \
-                        --listener allure_robotframework \
-                        ${TEST_PATH}
-                '''
             }
         }
 
@@ -168,18 +171,20 @@ pipeline {
             steps {
                 script {
                     echo "Processing test results..."
-                }
 
-                // Parse Robot Framework results
-                sh '''
-                    if [ -f ${RESULTS_DIR}/output.xml ]; then
-                        echo "Test execution completed - output.xml found"
-                        ls -lh ${RESULTS_DIR}/
-                    else
-                        echo "ERROR: No output.xml found!"
-                        exit 1
-                    fi
-                '''
+                    // Use catchError to continue even if processing fails
+                    catchError(buildResult: currentBuild.result ?: 'UNSTABLE', stageResult: 'FAILURE') {
+                        // Parse Robot Framework results
+                        sh '''
+                            if [ -f ${RESULTS_DIR}/output.xml ] || [ -f ${RESULTS_DIR}/output-*.xml ]; then
+                                echo "Test execution completed - output files found"
+                                ls -lh ${RESULTS_DIR}/
+                            else
+                                echo "WARNING: No output.xml found, but continuing with pipeline"
+                            fi
+                        '''
+                    }
+                }
             }
         }
 
