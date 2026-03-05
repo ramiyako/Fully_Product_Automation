@@ -264,8 +264,7 @@ Set Spectrum Analyzer Resolution Bandwidth
     Send SCPI Command    SpectrumAnalyzer    BAND:RES ${rbw}
 
 Measure Peak Power
-    [Documentation]    Measure peak power using spectrum analyzer
-    [Return Value]    Peak power in dBm
+    [Documentation]    Measure peak power using spectrum analyzer. Returns peak power in dBm.
 
     Log    Measuring peak power    level=DEBUG
 
@@ -283,8 +282,7 @@ Measure Peak Power
     RETURN    ${power}
 
 Measure Peak Frequency
-    [Documentation]    Measure frequency of peak signal
-    [Return Value]    Frequency in Hz
+    [Documentation]    Measure frequency of peak signal. Returns frequency in Hz.
 
     Log    Measuring peak frequency    level=DEBUG
 

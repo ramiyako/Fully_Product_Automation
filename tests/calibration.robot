@@ -337,7 +337,7 @@ Calculate Average
 
     ${average}=    Evaluate    ${sum} / ${count}
 
-    [Return]    ${average}
+    RETURN    ${average}
 
 Calculate Linearity Error
     [Arguments]    ${power}    ${measured}    ${previous_measured}
