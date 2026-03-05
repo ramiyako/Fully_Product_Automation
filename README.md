@@ -25,9 +25,10 @@ sudo bash scripts/integration_setup.sh --mode=nuc --environment=integration --ve
 - 🚀 One-command deployment
 
 **After setup, access:**
-- Jenkins: http://localhost:8080
-- Kibana: http://localhost:5601
-- Elasticsearch: http://localhost:9200
+- Jenkins: http://localhost:8080 (or http://51.84.240.159:8080 for AWS)
+- Kibana: http://localhost:5601 (or http://51.84.240.159:5601 for AWS)
+- Elasticsearch: http://localhost:9200 (or http://51.84.240.159:9200 for AWS)
+- Allure Reports: http://localhost:9080 (or http://51.84.240.159:9080 for AWS)
 
 👉 **[Complete End-to-End Guide](docs/END_TO_END_GUIDE.md)** - Full walkthrough from setup to viewing results
 
@@ -397,6 +398,7 @@ For issues or questions:
 
 ---
 
-**Last Updated**: 2026-02-23
+**Last Updated**: 2026-03-05
 **Maintainer**: Automation Team
 **Status**: Active Development
+**AWS Instance**: 51.84.240.159 (i-0e14d354d2194366a)

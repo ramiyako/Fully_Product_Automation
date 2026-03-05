@@ -27,6 +27,7 @@ Replace `51.84.240.159` with your instance's public IP:
 |---------|-----|------|
 | Jenkins | http://51.84.240.159:8080 | 8080 |
 | Kibana | http://51.84.240.159:5601 | 5601 |
+| Allure Reports | http://51.84.240.159:9080 | 9080 |
 | Elasticsearch | http://51.84.240.159:9200 | 9200 |
 | Mock SA Admin | http://51.84.240.159:8001 | 8001 |
 | Mock SG Admin | http://51.84.240.159:8002 | 8002 |
@@ -44,6 +45,7 @@ bash scripts/configure_aws_security_group.sh \
 # - 22    (SSH)
 # - 8080  (Jenkins)
 # - 5601  (Kibana)
+# - 9080  (Allure Reports)
 # - 9200  (Elasticsearch)
 # - 8001  (Mock SA)
 # - 8002  (Mock SG)
@@ -484,6 +486,9 @@ docker compose -f ~/Fully_Product_Automation/infra/docker-compose.aws.yml restar
 
 ---
 
-**Version:** 1.0
+**Version:** 2.0
 **Updated:** 2026-03-05
 **Instance:** i-0e14d354d2194366a (51.84.240.159)
+**Disk:** 30GB (29GB usable)
+**Memory:** 8GB RAM
+**All Services:** ✅ Running (Jenkins, Kibana, Elasticsearch, Allure, Mock Equipment)

@@ -44,8 +44,8 @@ This guide walks you through deploying the complete RF Automation pipeline on AW
 - **Optimal:** m5.xlarge (4 vCPU, 16 GB RAM) - Best performance for concurrent tests
 
 ### Storage Requirements
-- **Minimum:** 30 GB gp3 EBS volume
-- **Recommended:** 50 GB gp3 EBS volume
+- **Minimum:** 30 GB gp3 EBS volume (Currently deployed)
+- **Recommended:** 50 GB gp3 EBS volume for growth
 
 ### Operating System
 - Ubuntu Server 24.04 LTS (Canonical, ami-xxxxx)
