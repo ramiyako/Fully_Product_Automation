@@ -159,7 +159,7 @@ pipeline {
                                 --loglevel ${LOG_LEVEL} \
                                 --timestampoutputs \
                                 --name "${PROJECT_NAME}_Build_${BUILD_NUMBER}" \
-                                --listener allure_robotframework \
+                                --listener allure_robotframework.listener:./allure-results \
                                 ${TEST_PATH}
                         '''
                     }
