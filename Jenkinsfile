@@ -195,15 +195,24 @@ pipeline {
                 }
 
                 sh '''
-                    # Run upload script
-                    python3 scripts/upload_to_elastic.py \
-                        --results-file ${RESULTS_DIR}/output.xml \
-                        --elastic-url ${ELASTIC_ENDPOINT} \
-                        --build-number ${BUILD_NUMBER} \
-                        --branch ${GIT_BRANCH} || {
-                        echo "WARNING: Failed to upload to Elasticsearch"
-                        echo "Results are still available locally"
-                    }
+                    # Find the most recent output file (handles timestamped outputs)
+                    OUTPUT_FILE=$(ls -t ${RESULTS_DIR}/output*.xml 2>/dev/null | head -1)
+
+                    if [ -n "$OUTPUT_FILE" ]; then
+                        echo "Found results file: $OUTPUT_FILE"
+
+                        # Run upload script
+                        python3 scripts/upload_to_elastic.py \
+                            --results-file "$OUTPUT_FILE" \
+                            --elastic-url ${ELASTIC_ENDPOINT} \
+                            --build-number ${BUILD_NUMBER} \
+                            --branch ${GIT_BRANCH} || {
+                            echo "WARNING: Failed to upload to Elasticsearch"
+                            echo "Results are still available locally"
+                        }
+                    else
+                        echo "WARNING: No output.xml file found to upload"
+                    fi
                 '''
             }
         }
