@@ -166,8 +166,6 @@ services:
       - MOCK_SPECTRUM_ANALYZER_HOST=mock-spectrum-analyzer
       - MOCK_SIGNAL_GENERATOR_HOST=mock-signal-generator
       - MOCK_DUT_HOST=mock-dut
-      - GITHUB_USERNAME=${GITHUB_USERNAME}
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
     ports:
       - "8080:8080"
       - "50000:50000"

@@ -28,5 +28,4 @@ RUN jenkins-plugin-cli --plugins \
     ws-cleanup \
     ansicolor \
     rebuild \
-    configuration-as-code \
-    job-dsl
+    configuration-as-code
