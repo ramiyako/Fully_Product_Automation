@@ -1,0 +1,225 @@
+╔════════════════════════════════════════════════════════════════════════╗
+║                  AWS RF AUTOMATION DEPLOYMENT SUMMARY                  ║
+║                        with ALLURE REPORTS                             ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+Instance: i-0e14d354d2194366a
+Public IP: 51.84.240.159
+Region: il-central-1
+
+═══════════════════════════════════════════════════════════════════════════
+ STEP 1: SSH INTO AWS INSTANCE
+═══════════════════════════════════════════════════════════════════════════
+
+  ssh -i your-key.pem ubuntu@51.84.240.159
+
+═══════════════════════════════════════════════════════════════════════════
+ STEP 2: RUN ONE-COMMAND DEPLOYMENT (includes Allure!)
+═══════════════════════════════════════════════════════════════════════════
+
+  git clone <your-repo-url> Fully_Product_Automation
+  cd Fully_Product_Automation
+  git checkout integration
+  sudo bash scripts/deploy_to_aws.sh
+
+  ⏱️  Duration: 30-40 minutes
+
+  This script automatically:
+  ✅ Installs Docker, Jenkins, Elasticsearch, Kibana
+  ✅ Installs nginx for Allure reports
+  ✅ Configures Allure on port 9080
+  ✅ Deploys mock RF equipment
+  ✅ Runs health checks
+  ✅ Generates initial Allure report
+
+═══════════════════════════════════════════════════════════════════════════
+ STEP 3: CONFIGURE AWS SECURITY GROUP ⚠️ CRITICAL!
+═══════════════════════════════════════════════════════════════════════════
+
+  Go to: https://console.aws.amazon.com/ec2/
+  → Security Groups → Edit Inbound Rules
+
+  Add these ports:
+  ┌─────────┬───────────────────────────────┐
+  │  Port   │  Service                      │
+  ├─────────┼───────────────────────────────┤
+  │   22    │  SSH                          │
+  │  8080   │  Jenkins                      │
+  │  5601   │  Kibana                       │
+  │  9200   │  Elasticsearch                │
+  │  9080   │  Allure Reports (nginx) ⭐     │
+  │  8001   │  Mock SA Admin                │
+  │  8002   │  Mock SG Admin                │
+  │  8003   │  Mock DUT Admin               │
+  └─────────┴───────────────────────────────┘
+
+  Source: 0.0.0.0/0 (or your IP for security)
+
+═══════════════════════════════════════════════════════════════════════════
+ STEP 4: VERIFY DEPLOYMENT (from your local machine)
+═══════════════════════════════════════════════════════════════════════════
+
+  bash scripts/check_aws_accessibility.sh
+
+  ✓ Should show all 8 services accessible
+
+═══════════════════════════════════════════════════════════════════════════
+ 🌐 ACCESS YOUR SERVICES
+═══════════════════════════════════════════════════════════════════════════
+
+  Main Services:
+  ┌────────────────┬─────────────────────────────────────────────┐
+  │ Jenkins        │ http://51.84.240.159:8080                   │
+  │ Kibana         │ http://51.84.240.159:5601                   │
+  │ Elasticsearch  │ http://51.84.240.159:9200                   │
+  │ Allure Reports │ http://51.84.240.159:9080 ⭐ NEW!           │
+  └────────────────┴─────────────────────────────────────────────┘
+
+  Mock Equipment Admin:
+  ┌────────────────┬─────────────────────────────────────────────┐
+  │ Mock SA        │ http://51.84.240.159:8001                   │
+  │ Mock SG        │ http://51.84.240.159:8002                   │
+  │ Mock DUT       │ http://51.84.240.159:8003                   │
+  └────────────────┴─────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════
+ 📊 ALLURE REPORTS - 3 WAYS TO ACCESS
+═══════════════════════════════════════════════════════════════════════════
+
+  1️⃣  Public URL (Recommended):
+      http://51.84.240.159:9080
+      → Direct nginx-served reports
+      → No Jenkins login required
+      → Fast and always available
+
+  2️⃣  Via Jenkins:
+      http://51.84.240.159:8080
+      → Run build → Click "Allure Report"
+      → Integrated with Jenkins builds
+
+  3️⃣  Via SSH Tunnel (Secure):
+      ssh -i key.pem -L 9080:localhost:9080 ubuntu@51.84.240.159
+      → Then: http://localhost:9080
+      → For secure, private access
+
+═══════════════════════════════════════════════════════════════════════════
+ 🎯 QUICK START - RUN YOUR FIRST TEST
+═══════════════════════════════════════════════════════════════════════════
+
+  1. Open Jenkins: http://51.84.240.159:8080
+
+  2. Get password:
+     ssh -i key.pem ubuntu@51.84.240.159
+     cat ~/Fully_Product_Automation/jenkins_initial_password.txt
+
+  3. Complete Jenkins setup wizard
+
+  4. Run "RF-Automation-Integration" job:
+     → Build with Parameters
+     → Select "PoPo Only" for quick test
+     → Enable "Generate Allure Report"
+     → Build!
+
+  5. View Results:
+     → In Jenkins: Click "Allure Report"
+     → Public URL: http://51.84.240.159:9080
+     → Kibana: http://51.84.240.159:5601
+
+═══════════════════════════════════════════════════════════════════════════
+ 📁 FILES CREATED FOR YOU
+═══════════════════════════════════════════════════════════════════════════
+
+  Deployment Scripts:
+  ✓ scripts/aws_setup.sh                    - AWS infrastructure setup
+  ✓ scripts/deploy_to_aws.sh                - Complete one-command deploy
+  ✓ scripts/configure_aws_security_group.sh - Security group automation
+  ✓ scripts/check_aws_accessibility.sh      - Service accessibility test
+
+  Configuration:
+  ✓ config/aws.env                          - AWS environment config
+  ✓ infra/docker-compose.aws.yml            - AWS-optimized Docker Compose
+
+  Documentation:
+  ✓ docs/AWS_DEPLOYMENT.md                  - Complete deployment guide
+  ✓ docs/AWS_DEPLOYMENT_CHECKLIST.md        - Step-by-step checklist
+  ✓ docs/AWS_QUICK_REFERENCE.md             - Quick command reference
+  ✓ docs/AWS_QUICK_START.md                 - Fast start guide
+
+═══════════════════════════════════════════════════════════════════════════
+ ✅ SUCCESS CRITERIA
+═══════════════════════════════════════════════════════════════════════════
+
+  Your deployment is successful when:
+
+  □ SSH into instance works
+  □ deploy_to_aws.sh completed
+  □ Security group configured (8 ports)
+  □ All 8 services accessible:
+    □ Jenkins (8080)
+    □ Kibana (5601)
+    □ Elasticsearch (9200)
+    □ Allure Reports (9080) ⭐
+    □ Mock SA (8001)
+    □ Mock SG (8002)
+    □ Mock DUT (8003)
+    □ SSH (22)
+  □ Jenkins configured
+  □ First test run successful
+  □ Allure report accessible at port 9080
+
+═══════════════════════════════════════════════════════════════════════════
+ 🚨 CURRENT STATUS - WHAT YOU NEED TO DO
+═══════════════════════════════════════════════════════════════════════════
+
+  Current State:
+  ✅ AWS instance running (i-0e14d354d2194366a)
+  ✅ SSH accessible (port 22 open)
+  ❌ Services not deployed yet
+  ❌ Security group ports not configured
+
+  What to do NOW:
+
+  1. Configure Security Group (5 minutes)
+     → Add all 8 ports in AWS Console
+
+  2. SSH into instance (1 minute)
+     → ssh -i key.pem ubuntu@51.84.240.159
+
+  3. Run deployment script (30-40 minutes)
+     → sudo bash scripts/deploy_to_aws.sh
+
+  4. Verify everything works (5 minutes)
+     → bash scripts/check_aws_accessibility.sh
+
+═══════════════════════════════════════════════════════════════════════════
+ 📞 NEED HELP?
+═══════════════════════════════════════════════════════════════════════════
+
+  Step-by-step guide:
+    docs/AWS_DEPLOYMENT_CHECKLIST.md
+
+  Quick commands:
+    docs/AWS_QUICK_START.md
+
+  Full documentation:
+    docs/AWS_DEPLOYMENT.md
+
+  Troubleshooting:
+    Run: scripts/check_aws_accessibility.sh
+    Check AWS Security Group settings
+    View logs: docker compose logs -f
+
+═══════════════════════════════════════════════════════════════════════════
+
+  🎉 Everything is ready! Your AWS server is configured to support:
+
+  ✅ Complete RF Automation pipeline
+  ✅ Jenkins CI/CD with parametrized builds
+  ✅ Elasticsearch + Kibana analytics
+  ✅ Allure Reports (publicly accessible on port 9080!)
+  ✅ Mock RF equipment with physics simulation
+  ✅ Automated test execution and reporting
+
+  Start now: ssh -i your-key.pem ubuntu@51.84.240.159
+
+═══════════════════════════════════════════════════════════════════════════

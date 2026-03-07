@@ -2,7 +2,9 @@
 Documentation     RF Equipment Control Keywords
 ...               Reusable Robot Framework keywords for controlling
 ...               RF test equipment (Spectrum Analyzers, Signal Generators, DUT)
+...               Supports both real equipment (SCPI over TCP) and mock equipment
 
+Library           SCPIEquipment.py
 Library           RequestsLibrary
 Library           Collections
 Library           String
@@ -33,10 +35,16 @@ ${DEFAULT_SPAN}       10000000   # 10 MHz
 #==============================================================================
 
 Verify Lab Network
-    [Documentation]    Verify connectivity to laboratory network
+    [Documentation]    Verify connectivity to laboratory network (skipped in mock mode)
     [Arguments]    ${timeout}=10
 
     Log    Verifying laboratory network connectivity    level=INFO
+
+    ${is_mock}=    Is Mock Mode
+    IF    ${is_mock}
+        Log    Mock mode - skipping Lab VLAN verification    level=INFO
+        RETURN
+    END
 
     ${result}=    Run Process    ip    route    get    192.168.50.1
     Should Contain    ${result.stdout}    192.168.50
@@ -45,8 +53,14 @@ Verify Lab Network
     Log    Lab network verified    level=INFO
 
 Ping Equipment
-    [Documentation]    Ping RF equipment to verify network connectivity
+    [Documentation]    Ping RF equipment to verify network connectivity (skipped in mock mode)
     [Arguments]    ${equipment_name}
+
+    ${is_mock}=    Is Mock Mode
+    IF    ${is_mock}
+        Log    Mock mode - skipping ping for ${equipment_name}    level=INFO
+        RETURN
+    END
 
     ${ip}=    Get Equipment IP    ${equipment_name}
 
@@ -58,6 +72,13 @@ Ping Equipment
 
     Log    ${equipment_name} is reachable    level=INFO
 
+Is Mock Mode
+    [Documentation]    Check if running in mock equipment mode
+    ${is_mock}=    Evaluate
+    ...    sys.path.insert(0, '${CURDIR}') or __import__('environment_config').get_config().use_mock_equipment
+    ...    modules=sys
+    RETURN    ${is_mock}
+
 Get Equipment IP
     [Documentation]    Get IP address for specified equipment
     [Arguments]    ${equipment_name}
@@ -66,7 +87,18 @@ Get Equipment IP
     Should Not Be Equal    ${ip}    ${None}
     ...    msg=Equipment ${equipment_name} not found in configuration
 
-    [Return]    ${ip}
+    RETURN    ${ip}
+
+Get Equipment Endpoint
+    [Documentation]    Get IP address and port for specified equipment
+    ...                Works with both real and mock equipment
+    [Arguments]    ${equipment_name}
+
+    ${ip}    ${port}=    Evaluate
+    ...    sys.path.insert(0, '${CURDIR}') or __import__('network_vars').get_equipment_endpoint("${equipment_name}")
+    ...    modules=sys
+
+    RETURN    ${ip}    ${port}
 
 #==============================================================================
 # Equipment Connection Keywords
@@ -74,48 +106,57 @@ Get Equipment IP
 
 Connect To Spectrum Analyzer
     [Documentation]    Establish connection to Spectrum Analyzer
+    ...                Works with both real and mock equipment
 
     Return From Keyword If    ${SA_CONNECTED}
 
-    ${ip}=    Get Equipment IP    SpectrumAnalyzer
+    ${ip}    ${port}=    Get Equipment Endpoint    SpectrumAnalyzer
 
-    Log    Connecting to Spectrum Analyzer at ${ip}    level=INFO
+    Log    Connecting to Spectrum Analyzer at ${ip}:${port}    level=INFO
 
-    # Example: HTTP/SCPI connection (adjust for your equipment)
-    # Create Session    spectrum_analyzer    http://${ip}    timeout=${SCPI_TIMEOUT}
+    # Connect via SCPI TCP
+    Connect To Equipment    SpectrumAnalyzer    ${ip}    ${port}
 
     # Verify connection with ID query
-    ${idn}=    Query Equipment    SpectrumAnalyzer    *IDN?
+    ${idn}=    Query SCPI    SpectrumAnalyzer    *IDN?
     Log    Spectrum Analyzer: ${idn}    level=INFO
 
     Set Suite Variable    ${SA_CONNECTED}    ${True}
 
 Connect To Signal Generator
     [Documentation]    Establish connection to Signal Generator
+    ...                Works with both real and mock equipment
 
     Return From Keyword If    ${SG_CONNECTED}
 
-    ${ip}=    Get Equipment IP    SignalGenerator
+    ${ip}    ${port}=    Get Equipment Endpoint    SignalGenerator
 
-    Log    Connecting to Signal Generator at ${ip}    level=INFO
+    Log    Connecting to Signal Generator at ${ip}:${port}    level=INFO
 
-    # Create Session    signal_generator    http://${ip}    timeout=${SCPI_TIMEOUT}
+    # Connect via SCPI TCP
+    Connect To Equipment    SignalGenerator    ${ip}    ${port}
 
-    ${idn}=    Query Equipment    SignalGenerator    *IDN?
+    ${idn}=    Query SCPI    SignalGenerator    *IDN?
     Log    Signal Generator: ${idn}    level=INFO
 
     Set Suite Variable    ${SG_CONNECTED}    ${True}
 
 Connect To DUT
     [Documentation]    Establish connection to Device Under Test
+    ...                Works with both real and mock equipment
 
     Return From Keyword If    ${DUT_CONNECTED}
 
-    ${ip}=    Get Equipment IP    DUT
+    ${ip}    ${port}=    Get Equipment Endpoint    DUT
 
-    Log    Connecting to DUT at ${ip}    level=INFO
+    Log    Connecting to DUT at ${ip}:${port}    level=INFO
 
-    # DUT-specific connection logic here
+    # Connect via SCPI TCP
+    Connect To Equipment    DUT    ${ip}    ${port}
+
+    # Verify connection
+    ${idn}=    Query SCPI    DUT    *IDN?
+    Log    DUT: ${idn}    level=INFO
 
     Set Suite Variable    ${DUT_CONNECTED}    ${True}
 
@@ -135,8 +176,8 @@ Disconnect All Equipment
 
     Log    Disconnecting from all equipment    level=INFO
 
-    # Close sessions
-    Run Keyword And Ignore Error    Delete All Sessions
+    # Disconnect via SCPI library
+    Disconnect All
 
     Set Suite Variable    ${SA_CONNECTED}    ${False}
     Set Suite Variable    ${SG_CONNECTED}    ${False}
@@ -152,43 +193,19 @@ Send SCPI Command
     [Documentation]    Send SCPI command to equipment
     [Arguments]    ${equipment_name}    ${command}
 
-    ${ip}=    Get Equipment IP    ${equipment_name}
-
     Log    Sending to ${equipment_name}: ${command}    level=DEBUG
-
-    # Example implementation - adjust for your equipment
-    # HTTP-based SCPI over REST API or socket connection
-    # ${response}=    POST Request    ${equipment_name}_session    /scpi
-    # ...    data=${command}${SCPI_TERMINATOR}
-
-    # For demonstration - actual implementation depends on equipment interface
+    SCPIEquipment.Send SCPI Command    ${equipment_name}    ${command}
     Log    Command sent: ${command}    level=DEBUG
 
 Query Equipment
     [Documentation]    Query equipment and return response
     [Arguments]    ${equipment_name}    ${query}
 
-    ${ip}=    Get Equipment IP    ${equipment_name}
-
     Log    Querying ${equipment_name}: ${query}    level=DEBUG
-
-    # Example implementation
-    # ${response}=    GET Request    ${equipment_name}_session    /scpi?cmd=${query}
-    # ${result}=    Set Variable    ${response.text}
-
-    # Mock response for demonstration (replace with actual implementation)
-    ${result}=    Set Variable If
-    ...    "${query}" == "*IDN?"    "Mock Equipment,Model 123,Serial 456,v1.0"
-    ...    "${query}" == "*TST?"    "0"
-    ...    "${query}" == "FREQ?"    "1000000000"
-    ...    "${query}" == "POW?"    "-10"
-    ...    "${query}" == "OUTP?"    "0"
-    ...    "${query}" == "SYST:ERR?"    "0,No error"
-    ...    "QUERY_RESPONSE"
-
+    ${result}=    Query SCPI    ${equipment_name}    ${query}
     Log    Response from ${equipment_name}: ${result}    level=DEBUG
 
-    [Return]    ${result}
+    RETURN    ${result}
 
 Reset Equipment
     [Documentation]    Send reset command to equipment
@@ -247,8 +264,7 @@ Set Spectrum Analyzer Resolution Bandwidth
     Send SCPI Command    SpectrumAnalyzer    BAND:RES ${rbw}
 
 Measure Peak Power
-    [Documentation]    Measure peak power using spectrum analyzer
-    [Return Value]    Peak power in dBm
+    [Documentation]    Measure peak power using spectrum analyzer. Returns peak power in dBm.
 
     Log    Measuring peak power    level=DEBUG
 
@@ -263,11 +279,10 @@ Measure Peak Power
 
     Log    Measured Power: ${power} dBm    level=INFO
 
-    [Return]    ${power}
+    RETURN    ${power}
 
 Measure Peak Frequency
-    [Documentation]    Measure frequency of peak signal
-    [Return Value]    Frequency in Hz
+    [Documentation]    Measure frequency of peak signal. Returns frequency in Hz.
 
     Log    Measuring peak frequency    level=DEBUG
 
@@ -281,7 +296,7 @@ Measure Peak Frequency
 
     Log    Measured Frequency: ${freq} Hz    level=INFO
 
-    [Return]    ${freq}
+    RETURN    ${freq}
 
 #==============================================================================
 # Signal Generator Keywords

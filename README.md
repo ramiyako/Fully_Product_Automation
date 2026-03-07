@@ -2,11 +2,120 @@
 
 Professional on-premise automation system for RF equipment testing using Robot Framework, Docker, Jenkins, and ELK Stack.
 
+## 🚀 Quick Start - Integration Branch
+
+**New: Complete end-to-end automation pipeline simulation!**
+
+Deploy a fully functional RF automation environment with Jenkins, Elasticsearch, Kibana, and Allure - all with mock equipment, no physical hardware required.
+
+```bash
+git clone <repo-url>
+cd Fully_Product_Automation
+git checkout integration
+sudo bash scripts/integration_setup.sh --mode=nuc --environment=integration --verbose
+```
+
+**Setup time:** ~25 minutes | **Result:** Fully operational test environment
+
+**What you get:**
+- 🎛️ Jenkins pipeline with parametrized builds (test scope selection via UI)
+- 📊 Elasticsearch + Kibana dashboards for result visualization
+- 📈 Allure interactive test reports
+- 🔧 Mock RF equipment with realistic physics simulation
+- 🚀 One-command deployment
+
+**After setup, access:**
+- Jenkins: http://localhost:8080 (or http://51.84.240.159:8080 for AWS)
+- Kibana: http://localhost:5601 (or http://51.84.240.159:5601 for AWS)
+- Elasticsearch: http://localhost:9200 (or http://51.84.240.159:9200 for AWS)
+- Allure Reports: http://localhost:9080 (or http://51.84.240.159:9080 for AWS)
+
+👉 **[Complete End-to-End Guide](docs/END_TO_END_GUIDE.md)** - Full walkthrough from setup to viewing results
+
+👉 [Integration Setup Details](docs/INTEGRATION_SETUP.md)
+
 ## System Overview
 
-An enterprise-grade automation infrastructure running on Intel NUC hardware, designed for controlling and testing RF equipment within a dedicated VLAN environment.
+An enterprise-grade automation infrastructure available in two modes:
 
-### Core Components
+### 🔧 Production Mode (main branch)
+- Intel NUC hardware with real RF equipment
+- Lab VLAN (192.168.50.x) connectivity
+- Physical Spectrum Analyzer, Signal Generator, DUT
+
+### 🧪 Integration Mode (integration branch)
+- **Mock RF equipment** with high-fidelity simulation
+- **No hardware required** - runs on any Linux system
+- **RF Physics Engine** - realistic harmonics, noise, intermodulation
+- **One-command deployment** - fully automated setup
+- **Complete CI/CD** - Jenkins, Elasticsearch, Kibana, Allure
+- **Parametrized pipeline** - customize test scope via Jenkins UI
+
+## 🎯 Integration Pipeline Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         USER WORKFLOW                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. Open Jenkins in Browser (http://localhost:8080)            │
+│  2. Select "RF-Automation-Integration" job                      │
+│  3. Click "Build with Parameters"                               │
+│  4. Define test scope:                                          │
+│     - Test Suite: All / PoPo Only / Functional Only / Custom   │
+│     - Tags: smoke, regression, sanity, etc.                    │
+│     - RF Physics: Enable/Disable                                │
+│     - Noise Floor: -120 to -90 dBm                             │
+│  5. Click "Build"                                               │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────┐           │
+│  │          JENKINS PIPELINE EXECUTION              │           │
+│  ├──────────────────────────────────────────────────┤           │
+│  │                                                  │           │
+│  │  Stage 1: Environment Setup                     │           │
+│  │  Stage 2: Python Environment                    │           │
+│  │  Stage 3: Infrastructure Check                  │           │
+│  │            ├─ Elasticsearch                     │           │
+│  │            ├─ Mock Spectrum Analyzer            │           │
+│  │            ├─ Mock Signal Generator             │           │
+│  │            └─ Mock DUT                          │           │
+│  │  Stage 4: PoPo Tests (if selected)             │           │
+│  │  Stage 5: Functional Tests (if selected)       │           │
+│  │  Stage 6: Generate Allure Report               │           │
+│  │  Stage 7: Upload to Elasticsearch              │           │
+│  │                                                  │           │
+│  └──────────────────────────────────────────────────┘           │
+│                           │                                      │
+│                           ▼                                      │
+│  ┌────────────────────────────────────────────────────┐         │
+│  │              VIEW RESULTS (3 OPTIONS)              │         │
+│  ├────────────────────────────────────────────────────┤         │
+│  │                                                    │         │
+│  │  Option A: Allure Report (Detailed)               │         │
+│  │  ├─ Click "Allure Report" in Jenkins             │         │
+│  │  ├─ View test steps, timing, screenshots         │         │
+│  │  ├─ Analyze trends and history                   │         │
+│  │  └─ Download for offline viewing                 │         │
+│  │                                                    │         │
+│  │  Option B: Kibana Dashboard (Trends)              │         │
+│  │  ├─ Open http://localhost:5601                   │         │
+│  │  ├─ Navigate to "RF Automation" dashboard        │         │
+│  │  ├─ View pass/fail trends over time              │         │
+│  │  ├─ Analyze by equipment, suite, build           │         │
+│  │  └─ Create custom visualizations                 │         │
+│  │                                                    │         │
+│  │  Option C: Elasticsearch (Raw Data)               │         │
+│  │  ├─ Query via curl or API                        │         │
+│  │  ├─ Export results programmatically              │         │
+│  │  ├─ Integrate with external tools                │         │
+│  │  └─ Custom aggregations and analytics            │         │
+│  │                                                    │         │
+│  └────────────────────────────────────────────────────┘         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Core Components
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
@@ -289,6 +398,7 @@ For issues or questions:
 
 ---
 
-**Last Updated**: 2026-02-23
+**Last Updated**: 2026-03-05
 **Maintainer**: Automation Team
 **Status**: Active Development
+**AWS Instance**: 51.84.240.159 (i-0e14d354d2194366a)

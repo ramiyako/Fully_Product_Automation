@@ -128,32 +128,42 @@ pipeline {
                 script {
                     def testPath = params.TEST_SUITE == 'all' ? 'tests/' : "tests/${params.TEST_SUITE}.robot"
                     echo "Executing tests: ${testPath}"
+
+                    // Use catchError to continue pipeline even if tests fail
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        sh '''
+                            # Determine test path
+                            if [ "${TEST_SUITE}" = "all" ]; then
+                                TEST_PATH="tests/"
+                            else
+                                TEST_PATH="tests/${TEST_SUITE}.robot"
+                            fi
+
+                            # Run tests in Docker with host network mode
+                            # Enable Allure listener for result collection
+                            docker run --rm \
+                                --network host \
+                                -v ${RESULTS_DIR}:/app/results \
+                                -v ${LOGS_DIR}:/app/logs \
+                                -v ${ALLURE_RESULTS_DIR}:/app/allure-results \
+                                -e LOG_LEVEL=${LOG_LEVEL} \
+                                -e USE_MOCK_EQUIPMENT=true \
+                                -e MOCK_SPECTRUM_ANALYZER_IP=127.0.0.1 \
+                                -e MOCK_SPECTRUM_ANALYZER_PORT=5001 \
+                                -e MOCK_SIGNAL_GENERATOR_IP=127.0.0.1 \
+                                -e MOCK_SIGNAL_GENERATOR_PORT=5002 \
+                                -e MOCK_DUT_IP=127.0.0.1 \
+                                -e MOCK_DUT_PORT=5003 \
+                                ${DOCKER_IMAGE}:${DOCKER_TAG} \
+                                --outputdir results \
+                                --loglevel ${LOG_LEVEL} \
+                                --timestampoutputs \
+                                --name "${PROJECT_NAME}_Build_${BUILD_NUMBER}" \
+                                --listener allure_robotframework.listener:./allure-results \
+                                ${TEST_PATH}
+                        '''
+                    }
                 }
-
-                sh '''
-                    # Determine test path
-                    if [ "${TEST_SUITE}" = "all" ]; then
-                        TEST_PATH="tests/"
-                    else
-                        TEST_PATH="tests/${TEST_SUITE}.robot"
-                    fi
-
-                    # Run tests in Docker with host network mode
-                    # Enable Allure listener for result collection
-                    docker run --rm \
-                        --network host \
-                        -v ${RESULTS_DIR}:/app/results \
-                        -v ${LOGS_DIR}:/app/logs \
-                        -v ${ALLURE_RESULTS_DIR}:/app/allure-results \
-                        -e LOG_LEVEL=${LOG_LEVEL} \
-                        ${DOCKER_IMAGE}:${DOCKER_TAG} \
-                        --outputdir results \
-                        --loglevel ${LOG_LEVEL} \
-                        --timestampoutputs \
-                        --name "${PROJECT_NAME}_Build_${BUILD_NUMBER}" \
-                        --listener allure_robotframework \
-                        ${TEST_PATH}
-                '''
             }
         }
 
@@ -161,18 +171,20 @@ pipeline {
             steps {
                 script {
                     echo "Processing test results..."
-                }
 
-                // Parse Robot Framework results
-                sh '''
-                    if [ -f ${RESULTS_DIR}/output.xml ]; then
-                        echo "Test execution completed - output.xml found"
-                        ls -lh ${RESULTS_DIR}/
-                    else
-                        echo "ERROR: No output.xml found!"
-                        exit 1
-                    fi
-                '''
+                    // Use catchError to continue even if processing fails
+                    catchError(buildResult: currentBuild.result ?: 'UNSTABLE', stageResult: 'FAILURE') {
+                        // Parse Robot Framework results
+                        sh '''
+                            if [ -f ${RESULTS_DIR}/output.xml ] || [ -f ${RESULTS_DIR}/output-*.xml ]; then
+                                echo "Test execution completed - output files found"
+                                ls -lh ${RESULTS_DIR}/
+                            else
+                                echo "WARNING: No output.xml found, but continuing with pipeline"
+                            fi
+                        '''
+                    }
+                }
             }
         }
 
@@ -183,15 +195,24 @@ pipeline {
                 }
 
                 sh '''
-                    # Run upload script
-                    python3 scripts/upload_to_elastic.py \
-                        --results-file ${RESULTS_DIR}/output.xml \
-                        --elastic-url ${ELASTIC_ENDPOINT} \
-                        --build-number ${BUILD_NUMBER} \
-                        --branch ${GIT_BRANCH} || {
-                        echo "WARNING: Failed to upload to Elasticsearch"
-                        echo "Results are still available locally"
-                    }
+                    # Find the most recent output file (handles timestamped outputs)
+                    OUTPUT_FILE=$(ls -t ${RESULTS_DIR}/output*.xml 2>/dev/null | head -1)
+
+                    if [ -n "$OUTPUT_FILE" ]; then
+                        echo "Found results file: $OUTPUT_FILE"
+
+                        # Run upload script
+                        python3 scripts/upload_to_elastic.py \
+                            --results-file "$OUTPUT_FILE" \
+                            --elastic-url ${ELASTIC_ENDPOINT} \
+                            --build-number ${BUILD_NUMBER} \
+                            --branch ${GIT_BRANCH} || {
+                            echo "WARNING: Failed to upload to Elasticsearch"
+                            echo "Results are still available locally"
+                        }
+                    else
+                        echo "WARNING: No output.xml file found to upload"
+                    fi
                 '''
             }
         }
@@ -291,7 +312,15 @@ pipeline {
                 echo "=========================================="
             }
 
-            // Clean up Docker resources
+            sh '''
+                echo "Updating Allure report..."
+                if [ -d "${ALLURE_RESULTS_DIR}" ] && [ "$(ls -A ${ALLURE_RESULTS_DIR} 2>/dev/null)" ]; then
+                    cp -r ${ALLURE_RESULTS_DIR}/* /opt/rf-automation/allure-results/ 2>/dev/null || true
+                    allure generate /opt/rf-automation/allure-results -o /opt/rf-automation/allure-report --clean 2>/dev/null || true
+                    echo "Allure report updated - view at http://44.203.135.53:9090"
+                fi
+            '''
+
             sh '''
                 echo "Cleaning up Docker resources..."
                 docker system prune -f --volumes || true

@@ -1,0 +1,117 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.40">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2064.v04e7f5c23eae"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2064.v04e7f5c23eae">
+      <jobProperties/>
+      <triggers/>
+      <parameters>
+        <string>TEST_SUITE</string>
+        <string>TEST_TAGS</string>
+        <string>TEST_INCLUDE</string>
+        <string>TEST_EXCLUDE</string>
+      </parameters>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description>RF Automation Integration Pipeline with Mock Equipment&#xd;
+&#xd;
+This pipeline runs automated RF tests against mock equipment with full ELK stack integration.&#xd;
+&#xd;
+Features:&#xd;
+- Parametrized test execution (customize test scope)&#xd;
+- Mock RF equipment (Spectrum Analyzer, Signal Generator, DUT)&#xd;
+- Elasticsearch result storage&#xd;
+- Kibana visualization&#xd;
+- Allure test reports</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>TEST_SUITE</name>
+          <description>Select which test suite to run</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>All Tests</string>
+              <string>PoPo Tests Only</string>
+              <string>Functional Tests Only</string>
+              <string>Custom (use tags)</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TEST_TAGS</name>
+          <description>Robot Framework tags to include (e.g., smoke, regression, sanity). Separate multiple tags with space.</description>
+          <defaultValue></defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TEST_INCLUDE</name>
+          <description>Test case patterns to include (e.g., *connection*, *calibration*)</description>
+          <defaultValue></defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TEST_EXCLUDE</name>
+          <description>Test case patterns to exclude</description>
+          <defaultValue></defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>ENABLE_RF_PHYSICS</name>
+          <description>Enable RF physics simulation (harmonics, intermodulation, noise)</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>NOISE_FLOOR_DBM</name>
+          <description>Simulated noise floor level</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>-120</string>
+              <string>-110</string>
+              <string>-100</string>
+              <string>-90</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>UPLOAD_TO_ELASTICSEARCH</name>
+          <description>Upload test results to Elasticsearch</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>GENERATE_ALLURE_REPORT</name>
+          <description>Generate Allure test report</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty/>
+    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+      <triggers/>
+    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps@2.93">
+    <scm class="hudson.plugins.git.GitSCM" plugin="git@4.11.0">
+      <configVersion>2</configVersion>
+      <userRemoteConfigs>
+        <hudson.plugins.git.UserRemoteConfig>
+          <url>$PROJECT_ROOT</url>
+        </hudson.plugins.git.UserRemoteConfig>
+      </userRemoteConfigs>
+      <branches>
+        <hudson.plugins.git.BranchSpec>
+          <name>*/integration</name>
+        </hudson.plugins.git.BranchSpec>
+      </branches>
+      <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+      <submoduleCfg class="empty-list"/>
+      <extensions/>
+    </scm>
+    <scriptPath>Jenkinsfile.integration</scriptPath>
+    <lightweight>true</lightweight>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

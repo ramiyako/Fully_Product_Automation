@@ -1,0 +1,234 @@
+version: '3.8'
+
+# AWS-optimized Docker Compose for RF Automation Integration
+# Configured for EC2 deployment with optimized resource allocation
+
+services:
+  # ============================================================================
+  # Elasticsearch - Test Results Storage
+  # ============================================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: rf-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"  # Increased heap for AWS (m5.large has 8GB)
+      - cluster.name=rf-automation-cluster
+      - node.name=rf-automation-node
+      - bootstrap.memory_lock=false
+      - network.host=0.0.0.0
+      - http.cors.enabled=true
+      - http.cors.allow-origin="*"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - rf-integration-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s  # Longer start period for AWS
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # ============================================================================
+  # Kibana - Data Visualization
+  # ============================================================================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: rf-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=rf-automation-kibana
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=5601
+      - LOGGING_QUIET=true
+    ports:
+      - "5601:5601"
+    networks:
+      - rf-integration-net
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s  # Longer start period for AWS
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # ============================================================================
+  # Mock Spectrum Analyzer
+  # ============================================================================
+  mock-spectrum-analyzer:
+    build:
+      context: ../mock_equipment
+      dockerfile: Dockerfile
+    image: rf-mock-equipment:latest
+    container_name: mock-sa
+    environment:
+      - EQUIPMENT_TYPE=spectrum_analyzer
+      - SCPI_PORT=5001
+      - HTTP_PORT=8000
+      - HTTP_HOST=0.0.0.0
+      - ENABLE_HARMONICS=true
+      - ENABLE_INTERMOD=true
+      - HARMONIC_ORDER=3
+      - NOISE_FLOOR_DBM=-120
+      - ENABLE_RF_PHYSICS=true
+      - LOG_LEVEL=INFO
+    ports:
+      - "5001:5001"    # SCPI TCP port
+      - "8001:8000"    # HTTP admin interface
+    networks:
+      - rf-integration-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ============================================================================
+  # Mock Signal Generator
+  # ============================================================================
+  mock-signal-generator:
+    build:
+      context: ../mock_equipment
+      dockerfile: Dockerfile
+    image: rf-mock-equipment:latest
+    container_name: mock-sg
+    environment:
+      - EQUIPMENT_TYPE=signal_generator
+      - SCPI_PORT=5002
+      - HTTP_PORT=8000
+      - HTTP_HOST=0.0.0.0
+      - ENABLE_HARMONICS=true
+      - HARMONIC_ORDER=3
+      - LOG_LEVEL=INFO
+    ports:
+      - "5002:5002"    # SCPI TCP port
+      - "8002:8000"    # HTTP admin interface
+    networks:
+      - rf-integration-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ============================================================================
+  # Mock DUT (Device Under Test)
+  # ============================================================================
+  mock-dut:
+    build:
+      context: ../mock_equipment
+      dockerfile: Dockerfile
+    image: rf-mock-equipment:latest
+    container_name: mock-dut
+    environment:
+      - EQUIPMENT_TYPE=dut
+      - SCPI_PORT=5003
+      - HTTP_PORT=8000
+      - HTTP_HOST=0.0.0.0
+      - SIGNAL_PROCESSING_MODE=linear
+      - LOG_LEVEL=INFO
+    ports:
+      - "5003:5003"    # SCPI TCP port
+      - "8003:8000"    # HTTP admin interface
+    networks:
+      - rf-integration-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  rf-integration-net:
+    driver: bridge
+    name: rf-integration-network
+    driver_opts:
+      com.docker.network.bridge.name: rf-br0
+      com.docker.network.driver.mtu: 1500
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  elasticsearch_data:
+    driver: local
+    name: rf-elasticsearch-data
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/lib/rf-automation/elasticsearch

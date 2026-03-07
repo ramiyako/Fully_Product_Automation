@@ -1,0 +1,443 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(
+            name: 'TEST_SUITE',
+            choices: ['All Tests', 'PoPo Tests Only', 'Functional Tests Only', 'Custom (use tags)'],
+            description: 'Select which test suite to run'
+        )
+        string(
+            name: 'TEST_TAGS',
+            defaultValue: '',
+            description: 'Robot Framework tags to include (e.g., smoke, regression, sanity). Separate multiple tags with space.'
+        )
+        string(
+            name: 'TEST_INCLUDE',
+            defaultValue: '',
+            description: 'Test case patterns to include (e.g., *connection*, *calibration*)'
+        )
+        string(
+            name: 'TEST_EXCLUDE',
+            defaultValue: '',
+            description: 'Test case patterns to exclude'
+        )
+        booleanParam(
+            name: 'ENABLE_RF_PHYSICS',
+            defaultValue: true,
+            description: 'Enable RF physics simulation (harmonics, intermodulation, noise)'
+        )
+        choice(
+            name: 'NOISE_FLOOR_DBM',
+            choices: ['-120', '-110', '-100', '-90'],
+            description: 'Simulated noise floor level'
+        )
+        booleanParam(
+            name: 'UPLOAD_TO_ELASTICSEARCH',
+            defaultValue: true,
+            description: 'Upload test results to Elasticsearch'
+        )
+        booleanParam(
+            name: 'GENERATE_ALLURE_REPORT',
+            defaultValue: true,
+            description: 'Generate Allure test report'
+        )
+    }
+
+    environment {
+        // Integration environment configuration
+        USE_MOCK_EQUIPMENT = 'true'
+        PYTHONPATH = "${WORKSPACE}"
+
+        // Elasticsearch configuration
+        ELASTICSEARCH_HOST = 'localhost'
+        ELASTICSEARCH_PORT = '9200'
+
+        // Python virtual environment
+        VENV_PATH = "${WORKSPACE}/venv"
+
+        // Mock equipment configuration from parameters
+        ENABLE_RF_PHYSICS = "${params.ENABLE_RF_PHYSICS}"
+        NOISE_FLOOR_DBM = "${params.NOISE_FLOOR_DBM}"
+    }
+
+    options {
+        // Keep last 30 builds
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+
+        // Timeout for entire pipeline
+        timeout(time: 1, unit: 'HOURS')
+
+        // Add timestamps to console output
+        timestamps()
+
+        // Don't allow concurrent builds
+        disableConcurrentBuilds()
+    }
+
+    stages {
+        stage('Environment Setup') {
+            steps {
+                script {
+                    // Enable HTML rendering in build descriptions
+                    try {
+                        def formatter = Jenkins.instance.getMarkupFormatter()
+                        if (formatter.class.simpleName == 'EscapedMarkupFormatter') {
+                            Jenkins.instance.setMarkupFormatter(
+                                new hudson.markup.RawHtmlMarkupFormatter(false)
+                            )
+                            Jenkins.instance.save()
+                            echo '✓ Enabled HTML markup formatter for build descriptions'
+                        }
+                    } catch (Exception e) {
+                        echo "Note: Could not auto-set markup formatter: ${e.message}"
+                        echo "Set manually: Manage Jenkins → Security → Markup Formatter → Safe HTML"
+                    }
+
+                    echo "========================================="
+                    echo "RF Automation - Integration Pipeline"
+                    echo "========================================="
+                    echo "Build: ${env.BUILD_NUMBER}"
+                    echo "Branch: ${env.GIT_BRANCH}"
+                    echo "Test Suite: ${params.TEST_SUITE}"
+                    echo "Mock Equipment: ${env.USE_MOCK_EQUIPMENT}"
+                    echo "RF Physics: ${params.ENABLE_RF_PHYSICS}"
+                    echo "Noise Floor: ${params.NOISE_FLOOR_DBM} dBm"
+                    if (params.TEST_TAGS) {
+                        echo "Tags: ${params.TEST_TAGS}"
+                    }
+                    echo "========================================="
+                }
+
+                // Clean workspace
+                sh 'rm -rf allure-results allure-report results logs'
+
+                // Create necessary directories
+                sh 'mkdir -p allure-results allure-report results logs'
+            }
+        }
+
+        stage('Python Environment') {
+            steps {
+                echo 'Setting up Python virtual environment...'
+
+                // Remove old venv if exists
+                sh 'rm -rf ${VENV_PATH}'
+
+                // Create new virtual environment
+                sh 'python3 -m venv ${VENV_PATH}'
+
+                // Install dependencies
+                sh '''
+                    . ${VENV_PATH}/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+
+                echo 'Python environment ready'
+            }
+        }
+
+        stage('Build Mock Equipment') {
+            steps {
+                echo 'Building mock equipment Docker images...'
+
+                sh '''
+                    cd infra
+                    docker compose -f docker-compose.integration.yml build --no-cache
+                '''
+
+                echo 'Mock equipment images built'
+            }
+        }
+
+        stage('Start Infrastructure') {
+            steps {
+                echo 'Starting infrastructure services...'
+
+                sh '''
+                    cd infra
+                    # Stop and remove any existing containers
+                    docker compose -f docker-compose.integration.yml down --remove-orphans
+
+                    # Start fresh containers
+                    docker compose -f docker-compose.integration.yml up -d
+                '''
+
+                echo 'Waiting for services to initialize...'
+                sleep 30
+
+                echo 'Infrastructure started'
+            }
+        }
+
+        stage('Infrastructure Check') {
+            steps {
+                echo 'Checking infrastructure services...'
+
+                script {
+                    // Check Elasticsearch
+                    def esHealthy = sh(
+                        script: 'curl -f -s http://localhost:9200/_cluster/health',
+                        returnStatus: true
+                    )
+
+                    if (esHealthy == 0) {
+                        echo '✓ Elasticsearch is healthy'
+                    } else {
+                        echo '✗ WARNING: Elasticsearch not responding'
+                    }
+
+                    // Check mock equipment
+                    def mockServices = [
+                        'Spectrum Analyzer': 8001,
+                        'Signal Generator': 8002,
+                        'DUT': 8003
+                    ]
+
+                    mockServices.each { name, port ->
+                        def healthy = sh(
+                            script: "curl -f -s http://localhost:${port}/health",
+                            returnStatus: true
+                        )
+
+                        if (healthy == 0) {
+                            echo "✓ Mock ${name} is healthy"
+                        } else {
+                            error "✗ Mock ${name} not responding on port ${port}"
+                        }
+                    }
+                }
+
+                echo 'All infrastructure services are healthy'
+            }
+        }
+
+        stage('PoPo Tests') {
+            when {
+                expression { params.TEST_SUITE == 'All Tests' || params.TEST_SUITE == 'PoPo Tests Only' }
+            }
+            steps {
+                echo 'Running Proof of Platform tests...'
+
+                script {
+                    def robotCmd = '''
+                        . ${VENV_PATH}/bin/activate
+                        robot \
+                            --outputdir results \
+                            --output popo_output.xml \
+                            --log popo_log.html \
+                            --report popo_report.html \
+                            --listener allure_robotframework:allure-results \
+                    '''
+
+                    // Add Elasticsearch listener if enabled
+                    if (params.UPLOAD_TO_ELASTICSEARCH) {
+                        robotCmd += ' --listener resources.ElasticsearchListener'
+                    }
+
+                    // Add tags if specified
+                    if (params.TEST_TAGS && params.TEST_SUITE == 'Custom (use tags)') {
+                        params.TEST_TAGS.split(' ').each { tag ->
+                            robotCmd += " --include ${tag}"
+                        }
+                    }
+
+                    // Add include/exclude patterns
+                    if (params.TEST_INCLUDE) {
+                        robotCmd += " --test '${params.TEST_INCLUDE}'"
+                    }
+                    if (params.TEST_EXCLUDE) {
+                        robotCmd += " --exclude '${params.TEST_EXCLUDE}'"
+                    }
+
+                    robotCmd += ' tests/integration_popo.robot'
+
+                    sh robotCmd
+                }
+            }
+
+            post {
+                always {
+                    // Archive PoPo test results
+                    archiveArtifacts artifacts: 'results/popo_*.{xml,html}', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Functional Tests') {
+            when {
+                expression { params.TEST_SUITE == 'All Tests' || params.TEST_SUITE == 'Functional Tests Only' }
+            }
+            steps {
+                echo 'Running RF functional tests with mock equipment...'
+
+                script {
+                    def robotCmd = '''
+                        . ${VENV_PATH}/bin/activate
+                        robot \
+                            --outputdir results \
+                            --output functional_output.xml \
+                            --log functional_log.html \
+                            --report functional_report.html \
+                            --listener allure_robotframework:allure-results \
+                    '''
+
+                    // Add Elasticsearch listener if enabled
+                    if (params.UPLOAD_TO_ELASTICSEARCH) {
+                        robotCmd += ' --listener resources.ElasticsearchListener'
+                    }
+
+                    // Add tags if specified
+                    if (params.TEST_TAGS && params.TEST_SUITE == 'Custom (use tags)') {
+                        params.TEST_TAGS.split(' ').each { tag ->
+                            robotCmd += " --include ${tag}"
+                        }
+                    }
+
+                    // Add include/exclude patterns
+                    if (params.TEST_INCLUDE) {
+                        robotCmd += " --test '${params.TEST_INCLUDE}'"
+                    }
+                    if (params.TEST_EXCLUDE) {
+                        robotCmd += " --exclude '${params.TEST_EXCLUDE}'"
+                    }
+
+                    robotCmd += ' tests/rf_functional.robot'
+
+                    sh robotCmd
+                }
+            }
+
+            post {
+                always {
+                    // Archive functional test results
+                    archiveArtifacts artifacts: 'results/functional_*.{xml,html}', allowEmptyArchive: true
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up...'
+
+            // Generate Allure Report (if enabled)
+            script {
+                if (params.GENERATE_ALLURE_REPORT) {
+                    echo 'Checking for allure-results...'
+
+                    // Check if allure-results exists and has files
+                    def hasResults = sh(
+                        script: 'test -d allure-results && test "$(ls -A allure-results)" && echo "yes" || echo "no"',
+                        returnStdout: true
+                    ).trim()
+
+                    if (hasResults == 'yes') {
+                        echo 'Allure results found, generating report...'
+                        try {
+                            timeout(time: 2, unit: 'MINUTES') {
+                                sh '''
+                                    echo "Running allure generate..."
+                                    echo "Current directory: $(pwd)"
+                                    echo "Allure-results contents:"
+                                    ls -la allure-results/ | head -10
+                                    allure generate allure-results -o allure-report --clean
+                                    echo "Allure generation completed"
+                                    echo "Allure-report contents:"
+                                    ls -la allure-report/ | head -10
+                                '''
+                            }
+                            echo '✓ Allure report generated successfully'
+
+                            // Archive the report immediately
+                            archiveArtifacts artifacts: 'allure-report/**/*', allowEmptyArchive: false
+                            echo '✓ Allure report archived'
+                            echo "View at: http://localhost:8080/job/RF-Automation-Integration/${env.BUILD_NUMBER}/artifact/allure-report/index.html"
+                        } catch (Exception e) {
+                            echo "✗ Failed to generate Allure report: ${e.message}"
+                        }
+                    } else {
+                        echo 'No allure-results found, skipping report generation'
+                    }
+                }
+            }
+
+            // Verify Elasticsearch upload (if enabled)
+            script {
+                if (params.UPLOAD_TO_ELASTICSEARCH) {
+                    echo 'Verifying Elasticsearch upload...'
+                    try {
+                        def esQuery = sh(
+                            script: '''
+                                curl -s -X GET "http://localhost:9200/rf-automation-*/_search?size=10&sort=@timestamp:desc" \
+                                -H 'Content-Type: application/json' \
+                                -d '{
+                                    "query": {
+                                        "match": {
+                                            "build_number": "'${BUILD_NUMBER}'"
+                                        }
+                                    }
+                                }'
+                            ''',
+                            returnStdout: true
+                        )
+                        echo "Elasticsearch query result: ${esQuery}"
+                    } catch (Exception e) {
+                        echo "Failed to query Elasticsearch: ${e.message}"
+                    }
+                }
+            }
+
+            // Keep infrastructure running (Elasticsearch, Kibana, mock equipment)
+            // To stop manually: cd infra && docker compose -f docker-compose.integration.yml down
+
+            // Set build description with clickable links on Jenkins build page
+            script {
+                def allureUrl = "${env.BUILD_URL}artifact/allure-report/index.html"
+                def kibanaUrl = "http://localhost:5601"
+                def esUrl = "http://localhost:9200"
+
+                currentBuild.description = """
+                    <a href='${allureUrl}'>📊 Allure Report</a> |
+                    <a href='${kibanaUrl}'>📈 Kibana</a> |
+                    <a href='${esUrl}'>🔍 Elasticsearch</a>
+                """.stripIndent().trim()
+            }
+
+            // Archive all test artifacts
+            archiveArtifacts artifacts: 'results/**/*', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'logs/**/*', allowEmptyArchive: true
+
+            // Clean old allure results
+            sh 'find allure-results -type f -mtime +7 -delete || true'
+        }
+
+        success {
+            echo '========================================='
+            echo '✓ Integration Pipeline PASSED'
+            echo '========================================='
+            echo "Build:    ${env.BUILD_NUMBER}"
+            echo "Duration: ${currentBuild.durationString}"
+            echo '========================================='
+        }
+
+        failure {
+            echo '========================================='
+            echo '✗ Integration Pipeline FAILED'
+            echo '========================================='
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo 'Check Allure report link on build page'
+            echo '========================================='
+        }
+
+        unstable {
+            echo '========================================='
+            echo '⚠ Integration Pipeline UNSTABLE'
+            echo '========================================='
+            echo "Build: ${env.BUILD_NUMBER}"
+            echo 'Check Allure report link on build page'
+            echo '========================================='
+        }
+    }
+}

@@ -21,6 +21,7 @@ ENV PYTHONUNBUFFERED=1
 # - default-jre-headless: Java runtime for Allure (headless to save space)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
+    iproute2 \
     curl \
     vim \
     net-tools \
@@ -53,6 +54,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY tests/ ./tests/
 COPY resources/ ./resources/
 COPY scripts/ ./scripts/
+COPY config/ ./config/
 
 # Create directories for results and logs
 RUN mkdir -p /app/results /app/logs

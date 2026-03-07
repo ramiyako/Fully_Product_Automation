@@ -6,13 +6,36 @@ This module contains all IP addresses and network configuration
 for RF equipment in the laboratory VLAN.
 
 IMPORTANT: Update IP addresses according to your lab setup.
+
+INTEGRATION MODE: This module now supports both real and mock equipment.
+Set USE_MOCK_EQUIPMENT=true in config/integration.env to use mock equipment.
 """
+
+from typing import Dict, Tuple
+
+# Try to import environment config (available in integration mode)
+# Supports both package-relative import and standalone execution (e.g. Robot Framework Variables directive)
+try:
+    from .environment_config import get_config
+    _env_config_available = True
+except (ImportError, SystemError):
+    try:
+        import os as _os
+        import sys as _sys
+        _current_dir = _os.path.dirname(_os.path.abspath(__file__))
+        if _current_dir not in _sys.path:
+            _sys.path.insert(0, _current_dir)
+        from environment_config import get_config
+        _env_config_available = True
+    except ImportError:
+        _env_config_available = False
 
 # ============================================================================
 # Equipment IP Addresses (Lab VLAN: 192.168.50.0/24)
 # ============================================================================
 
-EQUIPMENT_LIST = {
+# Default equipment IPs (real equipment on Lab VLAN)
+_DEFAULT_EQUIPMENT_LIST = {
     # Spectrum Analyzer
     "SpectrumAnalyzer": "192.168.50.10",
 
@@ -27,6 +50,80 @@ EQUIPMENT_LIST = {
     # "VectorNetworkAnalyzer": "192.168.50.12",
     # "OscilloscopeRF": "192.168.50.13",
 }
+
+# Default equipment ports
+_DEFAULT_EQUIPMENT_PORTS = {
+    "SpectrumAnalyzer": 5025,
+    "SignalGenerator": 5025,
+    "DUT": 5025,
+}
+
+
+def get_equipment_config() -> Dict[str, Tuple[str, int]]:
+    """
+    Get equipment configuration (IP and port)
+
+    Returns equipment IPs based on environment configuration:
+    - If USE_MOCK_EQUIPMENT=true: Returns localhost:500X for mocks
+    - Otherwise: Returns real equipment IPs from Lab VLAN
+
+    Returns:
+        Dictionary mapping equipment name to (ip, port) tuple
+    """
+    if _env_config_available:
+        try:
+            config = get_config()
+
+            if config.use_mock_equipment:
+                # Return mock equipment endpoints
+                return {
+                    "SpectrumAnalyzer": (config.spectrum_analyzer.host, config.spectrum_analyzer.port),
+                    "SignalGenerator": (config.signal_generator.host, config.signal_generator.port),
+                    "DUT": (config.dut.host, config.dut.port),
+                }
+        except Exception as e:
+            # Fall through to default if config fails
+            import logging
+            logging.warning(f"Failed to load environment config: {e}")
+
+    # Return default real equipment
+    return {
+        name: (ip, _DEFAULT_EQUIPMENT_PORTS.get(name, 5025))
+        for name, ip in _DEFAULT_EQUIPMENT_LIST.items()
+    }
+
+
+# Maintain backward compatibility - use lazy evaluation
+_equipment_list_cache = None
+
+def _get_equipment_list():
+    """Lazy getter for EQUIPMENT_LIST"""
+    global _equipment_list_cache
+    if _equipment_list_cache is None:
+        _equipment_list_cache = {
+            name: ip
+            for name, (ip, port) in get_equipment_config().items()
+        }
+    return _equipment_list_cache
+
+# Property-like access for backward compatibility
+class EquipmentListProxy:
+    def __getitem__(self, key):
+        return _get_equipment_list()[key]
+
+    def get(self, key, default=None):
+        return _get_equipment_list().get(key, default)
+
+    def items(self):
+        return _get_equipment_list().items()
+
+    def keys(self):
+        return _get_equipment_list().keys()
+
+    def values(self):
+        return _get_equipment_list().values()
+
+EQUIPMENT_LIST = EquipmentListProxy()
 
 # ============================================================================
 # Equipment Communication Settings
@@ -150,6 +247,25 @@ def get_equipment_ip(equipment_name: str) -> str:
     if equipment_name not in EQUIPMENT_LIST:
         raise KeyError(f"Equipment '{equipment_name}' not found in configuration")
     return EQUIPMENT_LIST[equipment_name]
+
+
+def get_equipment_endpoint(equipment_name: str) -> Tuple[str, int]:
+    """
+    Get IP address and port for specified equipment.
+
+    Args:
+        equipment_name: Name of the equipment
+
+    Returns:
+        Tuple of (ip_address, port)
+
+    Raises:
+        KeyError: If equipment not found in configuration
+    """
+    config = get_equipment_config()
+    if equipment_name not in config:
+        raise KeyError(f"Equipment '{equipment_name}' not found in configuration")
+    return config[equipment_name]
 
 
 def validate_ip_reachable(ip_address: str) -> bool:
