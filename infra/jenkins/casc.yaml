@@ -17,6 +17,37 @@ jenkins:
     standard:
       excludeClientIPFromCrumb: true
 
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-credentials"
+              username: "${GITHUB_USERNAME}"
+              password: "${GITHUB_TOKEN}"
+              description: "GitHub credentials for repo access"
+
+jobs:
+  - script: |
+      pipelineJob('RF Full Automation') {
+        definition {
+          cpsScmFlowDefinition {
+            scm {
+              git {
+                remote {
+                  url('https://github.com/ramiyako/Fully_Product_Automation.git')
+                  credentials('github-credentials')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile.integration')
+            lightweight(true)
+          }
+        }
+      }
+
 unclassified:
   location:
     url: "http://${JENKINS_URL:-localhost}:8080/"
