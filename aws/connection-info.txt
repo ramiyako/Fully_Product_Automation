@@ -1,0 +1,11 @@
+Instance ID : i-0d9cf2e74104190ce
+Public IP   : 44.203.135.53
+Region      : us-east-1
+Key File    : /home/ipr/py_projects/Fully_Product_Automation/aws/rf-automation-key.pem
+
+SSH: ssh -i /home/ipr/py_projects/Fully_Product_Automation/aws/rf-automation-key.pem ubuntu@44.203.135.53
+Jenkins: http://44.203.135.53:8080
+Kibana: http://44.203.135.53:5601
+Elasticsearch: http://44.203.135.53:9200
+
+Jenkins Password: ssh -i /home/ipr/py_projects/Fully_Product_Automation/aws/rf-automation-key.pem ubuntu@44.203.135.53 'sudo cat /var/lib/jenkins/secrets/initialAdminPassword'

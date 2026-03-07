@@ -51,7 +51,7 @@ log_info "Running as user: $ACTUAL_USER"
 # Configuration
 ################################################################################
 
-PROJECT_DIR="/home/$ACTUAL_USER/Fully_Product_Automation"
+PROJECT_DIR="/home/$ACTUAL_USER/py_projects/Fully_Product_Automation"
 BACKUP_DIR="/backup"
 
 ################################################################################
@@ -194,12 +194,11 @@ install_allure() {
 install_jenkins() {
     log_info "Installing Jenkins..."
 
-    # Add Jenkins repository
-    curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
-        tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+    # Add Jenkins repository (updated GPG key method)
+    wget -O /usr/share/keyrings/jenkins-keyring.asc \
+        https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
 
-    echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
-        https://pkg.jenkins.io/debian-stable binary/ | \
+    echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | \
         tee /etc/apt/sources.list.d/jenkins.list > /dev/null
 
     # Install Jenkins
@@ -314,8 +313,8 @@ setup_project() {
 # Deploy ELK Stack
 ################################################################################
 
-deploy_elk_stack() {
-    log_info "Deploying ELK Stack..."
+deploy_infrastructure() {
+    log_info "Deploying infrastructure (ELK + Mock Equipment)..."
 
     if [ ! -f "$PROJECT_DIR/infra/docker-compose.yml" ]; then
         log_error "docker-compose.yml not found in $PROJECT_DIR/infra/"
@@ -324,13 +323,10 @@ deploy_elk_stack() {
 
     cd $PROJECT_DIR/infra
 
-    # Pull images
-    sudo -u $ACTUAL_USER docker compose pull
+    # Build and start all containers
+    sudo -u $ACTUAL_USER docker compose up -d --build
 
-    # Start containers
-    sudo -u $ACTUAL_USER docker compose up -d
-
-    log_info "Waiting for Elasticsearch to start..."
+    log_info "Waiting for services to start..."
     sleep 30
 
     # Check Elasticsearch
@@ -347,7 +343,16 @@ deploy_elk_stack() {
         log_warn "Kibana may not be fully started yet (this can take 1-2 minutes)"
     fi
 
-    log_info "ELK Stack deployed"
+    # Check Mock Equipment
+    for port in 8001 8002 8003; do
+        if curl -s http://localhost:$port/health > /dev/null; then
+            log_success "Mock equipment on port $port is running"
+        else
+            log_warn "Mock equipment on port $port not ready yet"
+        fi
+    done
+
+    log_info "Infrastructure deployed"
     log_info "Elasticsearch: http://$(hostname -I | awk '{print $1}'):9200"
     log_info "Kibana: http://$(hostname -I | awk '{print $1}'):5601"
 }
@@ -519,7 +524,7 @@ main() {
     configure_system_resources
     setup_backup_directory
     setup_project
-    deploy_elk_stack
+    deploy_infrastructure
     build_test_runner
     configure_firewall
     create_health_check_script

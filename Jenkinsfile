@@ -13,7 +13,7 @@ pipeline {
         LOGS_DIR = "${env.WORKSPACE}/logs"
         ALLURE_RESULTS_DIR = "${env.WORKSPACE}/allure-results"
         ALLURE_REPORT_DIR = "${env.WORKSPACE}/allure-report"
-        ELASTIC_ENDPOINT = "http://localhost:9200"
+        ELASTIC_ENDPOINT = "http://${env.ELASTICSEARCH_HOST ?: 'elasticsearch'}:${env.ELASTICSEARCH_PORT ?: '9200'}"
         PROJECT_NAME = "RF-Automation"
     }
 
@@ -317,7 +317,7 @@ pipeline {
                 if [ -d "${ALLURE_RESULTS_DIR}" ] && [ "$(ls -A ${ALLURE_RESULTS_DIR} 2>/dev/null)" ]; then
                     cp -r ${ALLURE_RESULTS_DIR}/* /opt/rf-automation/allure-results/ 2>/dev/null || true
                     allure generate /opt/rf-automation/allure-results -o /opt/rf-automation/allure-report --clean 2>/dev/null || true
-                    echo "Allure report updated - view at http://44.203.135.53:9090"
+                    echo "Allure report updated"
                 fi
             '''
 

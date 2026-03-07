@@ -1,50 +1,27 @@
-# ELK Stack Infrastructure
-# Elasticsearch and Kibana for test results storage and visualization
-# Production-ready configuration for on-premise deployment
-
-version: '3.8'
-
 services:
-  # Elasticsearch - Test results database
+  # ==========================================================================
+  # Elasticsearch - Test Results Storage
+  # ==========================================================================
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
-    container_name: elasticsearch
-    hostname: elasticsearch
-
+    container_name: rf-elasticsearch
     environment:
-      # Single-node cluster configuration
       - discovery.type=single-node
-
-      # Disable security for internal network (enable for production)
       - xpack.security.enabled=false
-
-      # Memory settings (2GB heap recommended for NUC with 32GB RAM)
-      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
-
-      # Cluster name
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - cluster.name=rf-automation-cluster
-
-      # Node name
-      - node.name=rf-automation-node-1
-
-      # Disable bootstrap memory checks (for development)
+      - node.name=rf-automation-node
       - bootstrap.memory_lock=false
-
-      # Network settings
       - network.host=0.0.0.0
-
-      # HTTP CORS (for Kibana)
       - http.cors.enabled=true
-      - http.cors.allow-origin=*
-
+      - "http.cors.allow-origin=\"*\""
     ports:
-      - "9200:9200"  # REST API
-      - "9300:9300"  # Node communication
-
+      - "9200:9200"
+      - "9300:9300"
     volumes:
-      - es_data:/usr/share/elasticsearch/data
-      - es_logs:/usr/share/elasticsearch/logs
-
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - rf-net
     ulimits:
       memlock:
         soft: -1
@@ -52,77 +29,173 @@ services:
       nofile:
         soft: 65536
         hard: 65536
-
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 60s
-
+      retries: 20
+      start_period: 120s
     restart: unless-stopped
 
-    networks:
-      - elk
-
-  # Kibana - Visualization and dashboard
+  # ==========================================================================
+  # Kibana - Data Visualization
+  # ==========================================================================
   kibana:
     image: docker.elastic.co/kibana/kibana:8.12.0
-    container_name: kibana
-    hostname: kibana
-
+    container_name: rf-kibana
     environment:
-      # Elasticsearch connection
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-
-      # Server configuration
-      - SERVER_NAME=kibana
+      - SERVER_NAME=rf-automation-kibana
       - SERVER_HOST=0.0.0.0
-
-      # Monitoring
-      - MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED=true
-
-      # Logging
-      - LOGGING_VERBOSE=false
-
     ports:
       - "5601:5601"
-
-    volumes:
-      - kibana_data:/usr/share/kibana/data
-
+    networks:
+      - rf-net
     depends_on:
       elasticsearch:
         condition: service_healthy
-
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
-
     restart: unless-stopped
 
+  # ==========================================================================
+  # Mock Spectrum Analyzer
+  # ==========================================================================
+  mock-spectrum-analyzer:
+    build:
+      context: ../mock_equipment
+      dockerfile: Dockerfile
+    container_name: mock-sa
+    environment:
+      - EQUIPMENT_TYPE=spectrum_analyzer
+      - SCPI_PORT=5001
+      - HTTP_PORT=8000
+      - HTTP_HOST=0.0.0.0
+      - ENABLE_HARMONICS=true
+      - ENABLE_INTERMOD=true
+      - HARMONIC_ORDER=3
+      - NOISE_FLOOR_DBM=-120
+      - ENABLE_RF_PHYSICS=true
+    ports:
+      - "5001:5001"
+      - "8001:8000"
     networks:
-      - elk
+      - rf-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
 
-# Named volumes for data persistence
-volumes:
-  es_data:
-    driver: local
-    name: elasticsearch_data
+  # ==========================================================================
+  # Mock Signal Generator
+  # ==========================================================================
+  mock-signal-generator:
+    build:
+      context: ../mock_equipment
+      dockerfile: Dockerfile
+    container_name: mock-sg
+    environment:
+      - EQUIPMENT_TYPE=signal_generator
+      - SCPI_PORT=5002
+      - HTTP_PORT=8000
+      - HTTP_HOST=0.0.0.0
+      - ENABLE_HARMONICS=true
+      - HARMONIC_ORDER=3
+    ports:
+      - "5002:5002"
+      - "8002:8000"
+    networks:
+      - rf-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
 
-  es_logs:
-    driver: local
-    name: elasticsearch_logs
+  # ==========================================================================
+  # Mock DUT (Device Under Test)
+  # ==========================================================================
+  mock-dut:
+    build:
+      context: ../mock_equipment
+      dockerfile: Dockerfile
+    container_name: mock-dut
+    environment:
+      - EQUIPMENT_TYPE=dut
+      - SCPI_PORT=5003
+      - HTTP_PORT=8000
+      - HTTP_HOST=0.0.0.0
+      - SIGNAL_PROCESSING_MODE=linear
+    ports:
+      - "5003:5003"
+      - "8003:8000"
+    networks:
+      - rf-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
 
-  kibana_data:
-    driver: local
-    name: kibana_data
+  # ==========================================================================
+  # Jenkins - CI/CD Server
+  # ==========================================================================
+  jenkins:
+    build:
+      context: ./jenkins
+      dockerfile: Dockerfile
+    container_name: rf-jenkins
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - CASC_JENKINS_CONFIG=/var/jenkins_config/casc.yaml
+      - JENKINS_ADMIN_PASSWORD=admin
+      - JENKINS_OPTS=--prefix= -Dhudson.security.csrf.GlobalCrumbIssuerConfiguration.DISABLE_CSRF_PROTECTION=true
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - MOCK_SPECTRUM_ANALYZER_HOST=mock-spectrum-analyzer
+      - MOCK_SIGNAL_GENERATOR_HOST=mock-signal-generator
+      - MOCK_DUT_HOST=mock-dut
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./jenkins/casc.yaml:/var/jenkins_config/casc.yaml:ro
+      - ..:/var/jenkins_home/workspace/RF-Automation:ro
+    networks:
+      - rf-net
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/login || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+    restart: unless-stopped
 
-# Custom network for ELK communication
 networks:
-  elk:
+  rf-net:
     driver: bridge
-    name: elk_network
+    name: rf-automation-network
+
+volumes:
+  elasticsearch_data:
+    driver: local
+    name: rf-elasticsearch-data
+  jenkins_home:
+    driver: local
+    name: rf-jenkins-home

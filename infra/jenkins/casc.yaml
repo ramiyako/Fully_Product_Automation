@@ -1,0 +1,22 @@
+jenkins:
+  systemMessage: "RF Automation CI/CD Server"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "${JENKINS_ADMIN_PASSWORD:-admin}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  markupFormatter:
+    rawHtml:
+      disableSyntaxHighlighting: false
+  crumbIssuer:
+    standard:
+      excludeClientIPFromCrumb: true
+
+unclassified:
+  location:
+    url: "http://${JENKINS_URL:-localhost}:8080/"

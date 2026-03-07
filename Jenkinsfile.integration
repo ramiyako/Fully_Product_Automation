@@ -45,18 +45,18 @@ pipeline {
     }
 
     environment {
-        // Integration environment configuration
         USE_MOCK_EQUIPMENT = 'true'
         PYTHONPATH = "${WORKSPACE}"
 
-        // Elasticsearch configuration
-        ELASTICSEARCH_HOST = 'localhost'
-        ELASTICSEARCH_PORT = '9200'
+        ELASTICSEARCH_HOST = "${env.ELASTICSEARCH_HOST ?: 'elasticsearch'}"
+        ELASTICSEARCH_PORT = "${env.ELASTICSEARCH_PORT ?: '9200'}"
 
-        // Python virtual environment
+        MOCK_SA_HOST = "${env.MOCK_SPECTRUM_ANALYZER_HOST ?: 'mock-spectrum-analyzer'}"
+        MOCK_SG_HOST = "${env.MOCK_SIGNAL_GENERATOR_HOST ?: 'mock-signal-generator'}"
+        MOCK_DUT_HOST = "${env.MOCK_DUT_HOST ?: 'mock-dut'}"
+
         VENV_PATH = "${WORKSPACE}/venv"
 
-        // Mock equipment configuration from parameters
         ENABLE_RF_PHYSICS = "${params.ENABLE_RF_PHYSICS}"
         NOISE_FLOOR_DBM = "${params.NOISE_FLOOR_DBM}"
     }
@@ -138,47 +138,13 @@ pipeline {
             }
         }
 
-        stage('Build Mock Equipment') {
-            steps {
-                echo 'Building mock equipment Docker images...'
-
-                sh '''
-                    cd infra
-                    docker compose -f docker-compose.integration.yml build --no-cache
-                '''
-
-                echo 'Mock equipment images built'
-            }
-        }
-
-        stage('Start Infrastructure') {
-            steps {
-                echo 'Starting infrastructure services...'
-
-                sh '''
-                    cd infra
-                    # Stop and remove any existing containers
-                    docker compose -f docker-compose.integration.yml down --remove-orphans
-
-                    # Start fresh containers
-                    docker compose -f docker-compose.integration.yml up -d
-                '''
-
-                echo 'Waiting for services to initialize...'
-                sleep 30
-
-                echo 'Infrastructure started'
-            }
-        }
-
         stage('Infrastructure Check') {
             steps {
-                echo 'Checking infrastructure services...'
+                echo 'Verifying infrastructure services (managed by docker compose)...'
 
                 script {
-                    // Check Elasticsearch
                     def esHealthy = sh(
-                        script: 'curl -f -s http://localhost:9200/_cluster/health',
+                        script: "curl -f -s http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}/_cluster/health",
                         returnStatus: true
                     )
 
@@ -188,23 +154,22 @@ pipeline {
                         echo '✗ WARNING: Elasticsearch not responding'
                     }
 
-                    // Check mock equipment
                     def mockServices = [
-                        'Spectrum Analyzer': 8001,
-                        'Signal Generator': 8002,
-                        'DUT': 8003
+                        'Spectrum Analyzer': "${MOCK_SA_HOST}:8000",
+                        'Signal Generator' : "${MOCK_SG_HOST}:8000",
+                        'DUT'              : "${MOCK_DUT_HOST}:8000"
                     ]
 
-                    mockServices.each { name, port ->
+                    mockServices.each { name, endpoint ->
                         def healthy = sh(
-                            script: "curl -f -s http://localhost:${port}/health",
+                            script: "curl -f -s http://${endpoint}/health",
                             returnStatus: true
                         )
 
                         if (healthy == 0) {
                             echo "✓ Mock ${name} is healthy"
                         } else {
-                            error "✗ Mock ${name} not responding on port ${port}"
+                            error "✗ Mock ${name} not responding at ${endpoint}"
                         }
                     }
                 }
@@ -369,8 +334,8 @@ pipeline {
                     echo 'Verifying Elasticsearch upload...'
                     try {
                         def esQuery = sh(
-                            script: '''
-                                curl -s -X GET "http://localhost:9200/rf-automation-*/_search?size=10&sort=@timestamp:desc" \
+                            script: """
+                                curl -s -X GET "http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}/rf-automation-*/_search?size=10&sort=@timestamp:desc" \
                                 -H 'Content-Type: application/json' \
                                 -d '{
                                     "query": {
@@ -379,7 +344,7 @@ pipeline {
                                         }
                                     }
                                 }'
-                            ''',
+                            """,
                             returnStdout: true
                         )
                         echo "Elasticsearch query result: ${esQuery}"
@@ -398,11 +363,11 @@ pipeline {
                 def kibanaUrl = "http://localhost:5601"
                 def esUrl = "http://localhost:9200"
 
-                currentBuild.description = """
-                    <a href='${allureUrl}'>📊 Allure Report</a> |
-                    <a href='${kibanaUrl}'>📈 Kibana</a> |
-                    <a href='${esUrl}'>🔍 Elasticsearch</a>
-                """.stripIndent().trim()
+                currentBuild.description = [
+                    "<a href='${allureUrl}'>Allure Report</a>",
+                    "<a href='${kibanaUrl}'>Kibana</a>",
+                    "<a href='${esUrl}'>Elasticsearch</a>"
+                ].join(' | ')
             }
 
             // Archive all test artifacts

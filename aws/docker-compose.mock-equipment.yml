@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  mock-spectrum-analyzer:
+    build:
+      context: ../mock_equipment
+      dockerfile: Dockerfile
+    container_name: mock-sa
+    environment:
+      - EQUIPMENT_TYPE=spectrum_analyzer
+      - SCPI_PORT=5001
+      - HTTP_PORT=8000
+      - HTTP_HOST=0.0.0.0
+      - ENABLE_HARMONICS=true
+      - ENABLE_INTERMOD=true
+      - HARMONIC_ORDER=3
+      - NOISE_FLOOR_DBM=-120
+      - ENABLE_RF_PHYSICS=true
+    ports:
+      - "5001:5001"
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  mock-signal-generator:
+    build:
+      context: ../mock_equipment
+      dockerfile: Dockerfile
+    container_name: mock-sg
+    environment:
+      - EQUIPMENT_TYPE=signal_generator
+      - SCPI_PORT=5002
+      - HTTP_PORT=8000
+      - HTTP_HOST=0.0.0.0
+      - ENABLE_HARMONICS=true
+      - HARMONIC_ORDER=3
+    ports:
+      - "5002:5002"
+      - "8002:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  mock-dut:
+    build:
+      context: ../mock_equipment
+      dockerfile: Dockerfile
+    container_name: mock-dut
+    environment:
+      - EQUIPMENT_TYPE=dut
+      - SCPI_PORT=5003
+      - HTTP_PORT=8000
+      - HTTP_HOST=0.0.0.0
+      - SIGNAL_PROCESSING_MODE=linear
+    ports:
+      - "5003:5003"
+      - "8003:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped

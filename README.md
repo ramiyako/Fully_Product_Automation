@@ -1,404 +1,233 @@
 # RF Automation Infrastructure
 
-Professional on-premise automation system for RF equipment testing using Robot Framework, Docker, Jenkins, and ELK Stack.
+On-premise automation system for RF equipment testing using Robot Framework, Docker, Jenkins, and ELK Stack.
+Supports both **real equipment** (Lab VLAN) and **mock equipment** (local Docker simulation).
 
-## 🚀 Quick Start - Integration Branch
+## Prerequisites
 
-**New: Complete end-to-end automation pipeline simulation!**
+- Ubuntu 22.04+ (tested on 22.04 and 24.04)
+- Docker Engine with Compose plugin (`docker compose` v2)
+- Python 3.11+
+- Git
+- sudo/root access
 
-Deploy a fully functional RF automation environment with Jenkins, Elasticsearch, Kibana, and Allure - all with mock equipment, no physical hardware required.
+## Quick Start (Local with Mock Equipment)
 
 ```bash
+# 1. Clone
 git clone <repo-url>
 cd Fully_Product_Automation
-git checkout integration
-sudo bash scripts/integration_setup.sh --mode=nuc --environment=integration --verbose
+
+# 2. Set vm.max_map_count for Elasticsearch
+sudo sysctl -w vm.max_map_count=262144
+
+# 3. Start all services (ELK + Mock Equipment)
+cd infra && docker compose up -d --build
+
+# 4. Wait ~60s for Elasticsearch to become healthy, then verify
+docker compose ps
+curl http://localhost:9200/_cluster/health?pretty
+curl http://localhost:8001/health   # Mock Spectrum Analyzer
+curl http://localhost:8002/health   # Mock Signal Generator
+curl http://localhost:8003/health   # Mock DUT
+
+# 5. Create a Python virtual environment and install dependencies
+cd ..
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# 6. Run tests
+robot --outputdir results \
+      --listener allure_robotframework:allure-results \
+      tests/integration_popo.robot
 ```
 
-**Setup time:** ~25 minutes | **Result:** Fully operational test environment
+### Service URLs (after `docker compose up`)
 
-**What you get:**
-- 🎛️ Jenkins pipeline with parametrized builds (test scope selection via UI)
-- 📊 Elasticsearch + Kibana dashboards for result visualization
-- 📈 Allure interactive test reports
-- 🔧 Mock RF equipment with realistic physics simulation
-- 🚀 One-command deployment
+| Service              | URL                     | Credentials   |
+|----------------------|-------------------------|---------------|
+| Jenkins              | http://localhost:8080   | admin / admin |
+| Kibana               | http://localhost:5601   |               |
+| Elasticsearch        | http://localhost:9200   |               |
+| Mock Spectrum Analyzer (HTTP) | http://localhost:8001 |       |
+| Mock Signal Generator (HTTP)  | http://localhost:8002 |       |
+| Mock DUT (HTTP)               | http://localhost:8003 |       |
 
-**After setup, access:**
-- Jenkins: http://localhost:8080 (or http://51.84.240.159:8080 for AWS)
-- Kibana: http://localhost:5601 (or http://51.84.240.159:5601 for AWS)
-- Elasticsearch: http://localhost:9200 (or http://51.84.240.159:9200 for AWS)
-- Allure Reports: http://localhost:9080 (or http://51.84.240.159:9080 for AWS)
+Mock equipment SCPI TCP ports: **5001** (SA), **5002** (SG), **5003** (DUT).
 
-👉 **[Complete End-to-End Guide](docs/END_TO_END_GUIDE.md)** - Full walkthrough from setup to viewing results
+## Full Setup
 
-👉 [Integration Setup Details](docs/INTEGRATION_SETUP.md)
+All services (Jenkins, ELK, Mock Equipment) are included in a single `docker compose`:
 
-## System Overview
-
-An enterprise-grade automation infrastructure available in two modes:
-
-### 🔧 Production Mode (main branch)
-- Intel NUC hardware with real RF equipment
-- Lab VLAN (192.168.50.x) connectivity
-- Physical Spectrum Analyzer, Signal Generator, DUT
-
-### 🧪 Integration Mode (integration branch)
-- **Mock RF equipment** with high-fidelity simulation
-- **No hardware required** - runs on any Linux system
-- **RF Physics Engine** - realistic harmonics, noise, intermodulation
-- **One-command deployment** - fully automated setup
-- **Complete CI/CD** - Jenkins, Elasticsearch, Kibana, Allure
-- **Parametrized pipeline** - customize test scope via Jenkins UI
-
-## 🎯 Integration Pipeline Workflow
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         USER WORKFLOW                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  1. Open Jenkins in Browser (http://localhost:8080)            │
-│  2. Select "RF-Automation-Integration" job                      │
-│  3. Click "Build with Parameters"                               │
-│  4. Define test scope:                                          │
-│     - Test Suite: All / PoPo Only / Functional Only / Custom   │
-│     - Tags: smoke, regression, sanity, etc.                    │
-│     - RF Physics: Enable/Disable                                │
-│     - Noise Floor: -120 to -90 dBm                             │
-│  5. Click "Build"                                               │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────┐           │
-│  │          JENKINS PIPELINE EXECUTION              │           │
-│  ├──────────────────────────────────────────────────┤           │
-│  │                                                  │           │
-│  │  Stage 1: Environment Setup                     │           │
-│  │  Stage 2: Python Environment                    │           │
-│  │  Stage 3: Infrastructure Check                  │           │
-│  │            ├─ Elasticsearch                     │           │
-│  │            ├─ Mock Spectrum Analyzer            │           │
-│  │            ├─ Mock Signal Generator             │           │
-│  │            └─ Mock DUT                          │           │
-│  │  Stage 4: PoPo Tests (if selected)             │           │
-│  │  Stage 5: Functional Tests (if selected)       │           │
-│  │  Stage 6: Generate Allure Report               │           │
-│  │  Stage 7: Upload to Elasticsearch              │           │
-│  │                                                  │           │
-│  └──────────────────────────────────────────────────┘           │
-│                           │                                      │
-│                           ▼                                      │
-│  ┌────────────────────────────────────────────────────┐         │
-│  │              VIEW RESULTS (3 OPTIONS)              │         │
-│  ├────────────────────────────────────────────────────┤         │
-│  │                                                    │         │
-│  │  Option A: Allure Report (Detailed)               │         │
-│  │  ├─ Click "Allure Report" in Jenkins             │         │
-│  │  ├─ View test steps, timing, screenshots         │         │
-│  │  ├─ Analyze trends and history                   │         │
-│  │  └─ Download for offline viewing                 │         │
-│  │                                                    │         │
-│  │  Option B: Kibana Dashboard (Trends)              │         │
-│  │  ├─ Open http://localhost:5601                   │         │
-│  │  ├─ Navigate to "RF Automation" dashboard        │         │
-│  │  ├─ View pass/fail trends over time              │         │
-│  │  ├─ Analyze by equipment, suite, build           │         │
-│  │  └─ Create custom visualizations                 │         │
-│  │                                                    │         │
-│  │  Option C: Elasticsearch (Raw Data)               │         │
-│  │  ├─ Query via curl or API                        │         │
-│  │  ├─ Export results programmatically              │         │
-│  │  ├─ Integrate with external tools                │         │
-│  │  └─ Custom aggregations and analytics            │         │
-│  │                                                    │         │
-│  └────────────────────────────────────────────────────┘         │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+```bash
+sudo sysctl -w vm.max_map_count=262144
+cd infra && docker compose up -d --build
 ```
 
-## Core Components
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **Hardware** | Intel NUC (i7, 32GB RAM, 1TB SSD) | Dedicated test orchestration server |
-| **OS** | Ubuntu Server 24.04 LTS | Native host operating system |
-| **Orchestration** | Jenkins | CI/CD pipeline management |
-| **Containerization** | Docker Engine | Test environment isolation |
-| **Database** | Elasticsearch 8.12.0 | Test results storage |
-| **Visualization** | Kibana 8.12.0 | Dashboard and analytics |
-| **Reporting** | Allure 2.25.0 | Interactive test reports |
-| **Framework** | Robot Framework (Python 3.11) | Test automation |
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Intel NUC Server                         │
-│                  Ubuntu Server 24.04 LTS                     │
-│                                                              │
-│  ┌────────────┐  ┌──────────────────┐  ┌────────────────┐  │
-│  │  Jenkins   │  │  Docker Engine   │  │   ELK Stack    │  │
-│  │            │  │                  │  │                │  │
-│  │  Pipeline  │──│  RF Test Runner  │──│  Elasticsearch │  │
-│  │  Executor  │  │   Container      │  │     Kibana     │  │
-│  └────────────┘  └──────────────────┘  └────────────────┘  │
-│                           │                                  │
-└───────────────────────────┼──────────────────────────────────┘
-                            │ Host Network Mode
-                            │
-                    ┌───────▼────────┐
-                    │   Lab VLAN     │
-                    │  192.168.50.x  │
-                    └────────────────┘
-                            │
-        ┌───────────────────┼───────────────────┐
-        │                   │                   │
-   ┌────▼────┐        ┌─────▼─────┐      ┌─────▼─────┐
-   │ Spectrum│        │  Signal   │      │    DUT    │
-   │ Analyzer│        │ Generator │      │           │
-   │  .50.10 │        │   .50.11  │      │  .50.20   │
-   └─────────┘        └───────────┘      └───────────┘
-```
-
-## Network Architecture
-
-- **Host Network Mode**: Docker containers use `--network host` for direct equipment access
-- **Dual Network**: Server connects to both office network (Git/Updates) and Lab VLAN (Equipment)
-- **VLAN Segmentation**: RF equipment isolated in dedicated VLAN (192.168.50.0/24)
+Jenkins takes ~2 minutes to start. After all services are healthy:
+- Jenkins: http://localhost:8080 (admin / admin)
+- Kibana: http://localhost:5601
+- Elasticsearch: http://localhost:9200
 
 ## Project Structure
 
 ```
 project-root/
-│
 ├── tests/                      # Robot Framework test suites
+│   ├── integration_popo.robot  # Proof-of-platform tests (mock)
 │   ├── rf_functional.robot     # Functional RF tests
 │   └── calibration.robot       # Equipment calibration tests
 │
 ├── resources/                  # Shared test resources
-│   ├── rf_keywords.resource    # Custom RF keywords
-│   └── network_vars.py         # Equipment IP configuration
+│   ├── rf_keywords.resource    # RF control keywords
+│   ├── SCPIEquipment.py        # SCPI TCP communication library
+│   ├── ElasticsearchListener.py # Real-time ES upload listener
+│   ├── environment_config.py   # Environment config loader
+│   └── network_vars.py         # Equipment IP/port configuration
 │
-├── scripts/                    # Automation scripts
-│   ├── upload_to_elastic.py    # Results upload to Elasticsearch
-│   └── setup_helpers.sh        # Installation helpers
+├── mock_equipment/             # Mock RF equipment (Docker)
+│   ├── Dockerfile
+│   ├── main.py                 # FastAPI + SCPI server
+│   ├── equipment/              # Equipment simulators
+│   └── rf_physics.py           # RF physics simulation engine
 │
 ├── infra/                      # Infrastructure as Code
-│   └── docker-compose.yml      # ELK Stack definition
+│   ├── docker-compose.yml      # Jenkins + ELK + Mock Equipment (local)
+│   ├── docker-compose.aws.yml  # AWS deployment variant
+│   ├── jenkins/                # Jenkins Docker build context
+│   │   ├── Dockerfile          # Jenkins LTS + plugins + Docker CLI
+│   │   └── casc.yaml           # Jenkins Configuration as Code
+│   ├── elasticsearch-index-template.json
+│   ├── kibana-dashboard.ndjson
+│   └── jenkins-job-config.xml
 │
+├── config/
+│   ├── integration.env         # Mock equipment config
+│   └── aws.env                 # AWS deployment config
+│
+├── scripts/                    # Automation scripts
+│   ├── setup_helpers.sh        # Full system setup
+│   ├── upload_to_elastic.py    # Manual ES upload
+│   └── ...                     # Jenkins & AWS scripts
+│
+├── aws/                        # AWS deployment files
 ├── docs/                       # Documentation
-│   ├── SETUP.md               # Installation guide
-│   ├── ARCHITECTURE.md        # System architecture
-│   ├── DEVELOPMENT.md         # Development guide
-│   └── OPERATIONS.md          # Operations manual
-│
-├── results/                    # Test execution results (gitignored)
-├── logs/                       # Application logs (gitignored)
-│
 ├── Dockerfile                  # Test runner container
-├── Jenkinsfile                 # CI/CD pipeline definition
-├── requirements.txt            # Python dependencies
-├── .gitignore                 # Git ignore patterns
-└── README.md                  # This file
+├── Jenkinsfile                 # Production Jenkins pipeline
+├── Jenkinsfile.integration     # Integration Jenkins pipeline
+├── Makefile                    # Convenience commands
+└── requirements.txt            # Python dependencies
 ```
 
-## Quick Start
+## Running Tests
 
-### Prerequisites
-
-- Intel NUC with Ubuntu Server 24.04 LTS installed
-- Network connectivity to both office and Lab VLAN
-- Git installed and configured
-- Sudo/root access
-
-### Installation
+### Locally (with mock equipment running)
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd Fully_Product_Automation
+source venv/bin/activate
 
-# Run the setup script
-sudo bash scripts/setup_helpers.sh
+# All PoPo tests
+robot --outputdir results tests/integration_popo.robot
 
-# Start ELK Stack
-cd infra && docker-compose up -d
+# Functional tests
+robot --outputdir results tests/rf_functional.robot
 
-# Verify installation
-docker ps
-curl http://localhost:9200
-curl http://localhost:5601
+# All tests with Allure + Elasticsearch listeners
+robot --outputdir results \
+      --listener allure_robotframework:allure-results \
+      --listener resources.ElasticsearchListener \
+      tests/
 ```
 
-Detailed instructions: [docs/SETUP.md](docs/SETUP.md)
+### Via Jenkins
 
-## Usage
+1. Open Jenkins at http://localhost:8080
+2. Select **RF-Automation-Integration** job
+3. Click **Build with Parameters**
+4. Choose test suite, tags, and options
+5. Click **Build**
 
-### Running Tests Manually
+Results are available via:
+- **Allure Report** (linked from Jenkins build page)
+- **Kibana** dashboards at http://localhost:5601
+- **Elasticsearch** API at http://localhost:9200
+
+## Infrastructure Management
 
 ```bash
-# Build the test runner image
-docker build -t rf-test-runner .
+# Start everything
+cd infra && docker compose up -d --build
 
-# Run tests
-docker run --rm --network host \
-  -v $(pwd)/results:/app/results \
-  rf-test-runner --outputdir results tests/
+# Stop everything
+cd infra && docker compose down
+
+# View logs
+cd infra && docker compose logs -f
+
+# Restart
+cd infra && docker compose restart
+
+# Check status
+docker compose ps
 ```
 
-### Running Tests via Jenkins
+Or use the Makefile:
 
-1. Access Jenkins: `http://<nuc-ip>:8080`
-2. Navigate to RF-Automation-Pipeline
-3. Click "Build Now"
-4. View results in Kibana: `http://<nuc-ip>:5601`
-
-### Viewing Results
-
-Access test reports through multiple interfaces:
-
-- **Allure Report**: Interactive test report with trends, graphs, and detailed execution data
-  - Access via Jenkins Allure plugin at each build
-  - Or download `allure-report.zip` from build artifacts and open `index.html`
-  - Features: Overview, trends, categories, timeline, behaviors, and history
-- **Jenkins**: HTML reports archived in build artifacts
-- **Kibana**: Real-time dashboards at `http://<nuc-ip>:5601`
-- **Local**: `results/` directory contains log.html, report.html, output.xml
-
-#### Allure Report Features
-
-The Allure report provides:
-- **Overview**: Pass/fail statistics, test duration, environment info
-- **Suites**: Hierarchical view of test suites and test cases
-- **Graphs**: Trend charts, status distribution, severity breakdown
-- **Timeline**: Gantt chart showing test execution timeline
-- **Behaviors**: BDD-style test organization
-- **Categories**: Automatic failure categorization (network, SCPI, measurements)
-- **History**: Historical trend analysis across builds
-- **Attachments**: Screenshots, logs, and test artifacts
-
-## Development Workflow
-
-### Branching Strategy
-
-- `main`: Production-ready code running in lab
-- `develop`: Integration branch for new features
-- `feature/*`: New test development or infrastructure updates
-
-### Contributing
-
-1. Create feature branch: `git checkout -b feature/new-rf-test`
-2. Develop and test locally
-3. Commit changes: `git commit -m "Add new RF test for X"`
-4. Push to remote: `git push origin feature/new-rf-test`
-5. Create Pull Request to `develop`
-6. After review, merge to `develop`
-7. CI/CD automatically deploys to lab
-
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed guidelines.
+```bash
+make infra-up       # Start
+make infra-down     # Stop
+make infra-logs     # Logs
+make status         # System status
+make health-check   # Full health check
+```
 
 ## Configuration
 
-### Equipment IP Addresses
+### Equipment Endpoints
 
-Edit `resources/network_vars.py`:
+Controlled via `config/integration.env` and environment variables:
 
-```python
-EQUIPMENT_LIST = {
-    "SpectrumAnalyzer": "192.168.50.10",
-    "SignalGenerator": "192.168.50.11",
-    "DUT": "192.168.50.20"
-}
-```
+- **Mock mode** (`USE_MOCK_EQUIPMENT=true`): connects to localhost:5001-5003
+- **Real equipment** (`USE_MOCK_EQUIPMENT=false`): connects to Lab VLAN IPs in `resources/network_vars.py`
 
-### Elasticsearch Endpoint
+### Elasticsearch
 
-Default: `http://localhost:9200`
+Default: `http://localhost:9200` (no authentication).
+Configure in `config/integration.env` or via `ELASTICSEARCH_HOST` / `ELASTICSEARCH_PORT` env vars.
 
-Modify in `resources/network_vars.py` if using different configuration.
+## AWS Deployment
 
-## Monitoring & Maintenance
-
-### Health Checks
+AWS deployment files are in `aws/` and `config/aws.env`. See `docs/AWS_DEPLOYMENT.md` for details.
 
 ```bash
-# Check Docker containers
-docker ps
-
-# Check ELK Stack
-curl http://localhost:9200/_cluster/health
-curl http://localhost:5601/api/status
-
-# Check Jenkins
-systemctl status jenkins
-```
-
-### Logs
-
-```bash
-# ELK Stack logs
-docker-compose -f infra/docker-compose.yml logs -f
-
-# Jenkins logs
-sudo journalctl -u jenkins -f
-
-# Test execution logs
-tail -f logs/test_execution.log
+# AWS-specific compose
+cd infra && docker compose -f docker-compose.aws.yml up -d
 ```
 
 ## Troubleshooting
 
-### Common Issues
+**`docker-compose` not found**
+Use `docker compose` (v2 plugin, no hyphen). Verify: `docker compose version`
 
-**Equipment Not Reachable**
-- Verify VLAN connectivity: `ping 192.168.50.10`
-- Check host network mode in Docker run command
-- Verify IP addresses in `resources/network_vars.py`
+**Elasticsearch won't start**
+```bash
+sudo sysctl -w vm.max_map_count=262144
+echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+```
 
-**Elasticsearch Not Starting**
-- Check available memory: `free -h`
-- Verify Java heap settings in docker-compose.yml
-- Check logs: `docker logs elasticsearch`
+**Jenkins GPG key error**
+```bash
+sudo bash scripts/fix_jenkins_gpg.sh
+```
 
-**Jenkins Build Fails**
-- Verify Docker image builds: `docker build -t rf-test-runner .`
-- Check workspace permissions
-- Review Jenkins console output
+**Mock equipment not healthy**
+```bash
+cd infra && docker compose logs mock-sa mock-sg mock-dut
+docker compose restart mock-spectrum-analyzer mock-signal-generator mock-dut
+```
 
-See [docs/OPERATIONS.md](docs/OPERATIONS.md) for comprehensive troubleshooting.
-
-## Technology Stack
-
-- **Python**: 3.11
-- **Robot Framework**: 7.0
-- **Allure**: 2.25.0
-- **Docker**: 24.x
-- **Jenkins**: LTS
-- **Elasticsearch**: 8.12.0
-- **Kibana**: 8.12.0
-- **Ubuntu**: Server 24.04 LTS
-
-## License
-
-Internal project - All rights reserved
-
-## Support
-
-For issues or questions:
-- Create an issue in the repository
-- Contact the automation team
-- See documentation in `docs/`
-
-## Roadmap
-
-- [ ] Phase 1: Infrastructure setup and basic tests
-- [ ] Phase 2: Advanced RF test scenarios
-- [ ] Phase 3: Automated calibration workflows
-- [ ] Phase 4: ML-based anomaly detection
-- [ ] Phase 5: Multi-site deployment
-
----
-
-**Last Updated**: 2026-03-05
-**Maintainer**: Automation Team
-**Status**: Active Development
-**AWS Instance**: 51.84.240.159 (i-0e14d354d2194366a)
+**Check all services**
+```bash
+cd infra && docker compose ps
+```

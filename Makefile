@@ -22,11 +22,13 @@ help:
 	@echo "  make docker-run       Run tests in Docker container"
 	@echo "  make docker-clean     Clean Docker resources"
 	@echo ""
-	@echo "Infrastructure:"
-	@echo "  make elk-up           Start ELK Stack"
-	@echo "  make elk-down         Stop ELK Stack"
-	@echo "  make elk-restart      Restart ELK Stack"
-	@echo "  make elk-logs         View ELK Stack logs"
+	@echo "Infrastructure (ELK + Mock Equipment + Jenkins):"
+	@echo "  make infra-up         Start all services"
+	@echo "  make infra-down       Stop all services"
+	@echo "  make infra-restart    Restart all services"
+	@echo "  make infra-logs       View service logs"
+	@echo "  make jenkins-logs     View Jenkins logs"
+	@echo "  make jenkins-restart  Restart Jenkins only"
 	@echo ""
 	@echo "Monitoring:"
 	@echo "  make health-check     Run system health check"
@@ -79,26 +81,46 @@ docker-clean:
 	@echo "Cleaning Docker resources..."
 	docker system prune -f --volumes
 
-# ELK Stack operations
-elk-up:
-	@echo "Starting ELK Stack..."
-	cd infra && docker compose up -d
-	@echo "Waiting for Elasticsearch..."
-	@sleep 10
+# Infrastructure operations (ELK + Mock Equipment)
+infra-up:
+	@echo "Starting infrastructure (ELK + Mock Equipment + Jenkins)..."
+	cd infra && docker compose up -d --build
+	@echo "Waiting for services to start..."
+	@sleep 15
 	@curl -s http://localhost:9200 > /dev/null && echo "Elasticsearch: OK" || echo "Elasticsearch: Starting..."
-	@echo "Access Kibana at: http://localhost:5601"
+	@curl -s http://localhost:8001/health > /dev/null && echo "Mock SA: OK" || echo "Mock SA: Starting..."
+	@curl -s http://localhost:8002/health > /dev/null && echo "Mock SG: OK" || echo "Mock SG: Starting..."
+	@curl -s http://localhost:8003/health > /dev/null && echo "Mock DUT: OK" || echo "Mock DUT: Starting..."
+	@curl -s http://localhost:8080/login > /dev/null && echo "Jenkins: OK" || echo "Jenkins: Starting (~2 min)..."
+	@echo ""
+	@echo "Jenkins:        http://localhost:8080  (admin/admin)"
+	@echo "Kibana:         http://localhost:5601"
+	@echo "Elasticsearch:  http://localhost:9200"
 
-elk-down:
-	@echo "Stopping ELK Stack..."
+infra-down:
+	@echo "Stopping infrastructure..."
 	cd infra && docker compose down
 
-elk-restart:
-	@echo "Restarting ELK Stack..."
+infra-restart:
+	@echo "Restarting infrastructure..."
 	cd infra && docker compose restart
 
-elk-logs:
-	@echo "Viewing ELK Stack logs..."
+infra-logs:
+	@echo "Viewing infrastructure logs..."
 	cd infra && docker compose logs -f
+
+elk-up: infra-up
+elk-down: infra-down
+elk-restart: infra-restart
+elk-logs: infra-logs
+
+jenkins-logs:
+	@echo "Jenkins logs:"
+	@docker logs rf-jenkins --tail 50
+
+jenkins-restart:
+	@echo "Restarting Jenkins..."
+	cd infra && docker compose restart jenkins
 
 # Monitoring
 health-check:
@@ -108,21 +130,22 @@ health-check:
 logs:
 	@echo "Recent logs:"
 	@echo ""
-	@echo "=== Jenkins Logs ==="
-	@sudo journalctl -u jenkins --since "1 hour ago" | tail -20
-	@echo ""
-	@echo "=== Docker Logs ==="
-	@docker ps --format "{{.Names}}" | xargs -I {} sh -c 'echo "=== {} ===" && docker logs --tail 10 {}'
+	@echo "=== Docker Container Logs ==="
+	@docker ps --format "{{.Names}}" | xargs -I {} sh -c 'echo "--- {} ---" && docker logs --tail 10 {}'
 
 status:
 	@echo "System Status:"
 	@echo ""
 	@echo "Services:"
-	@systemctl is-active jenkins && echo "  Jenkins: Running" || echo "  Jenkins: Stopped"
 	@systemctl is-active docker && echo "  Docker: Running" || echo "  Docker: Stopped"
 	@echo ""
 	@echo "Docker Containers:"
 	@docker ps --format "  {{.Names}}: {{.Status}}"
+	@echo ""
+	@echo "URLs:"
+	@echo "  Jenkins:        http://localhost:8080"
+	@echo "  Kibana:         http://localhost:5601"
+	@echo "  Elasticsearch:  http://localhost:9200"
 	@echo ""
 	@echo "Disk Usage:"
 	@df -h / | tail -1
@@ -148,7 +171,7 @@ update:
 	@echo "Updating dependencies..."
 	@git pull origin main
 	@pip install --upgrade -r requirements.txt
-	@docker compose -f infra/docker-compose.yml pull
+	@cd infra && docker compose pull
 	@docker build -t rf-test-runner .
 	@echo "Update complete"
 
