@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        node {
+            label ''
+            customWorkspace '/var/jenkins_home/workspace/RF_Full_Automation'
+        }
+    }
 
     parameters {
         choice(
@@ -122,14 +127,12 @@ pipeline {
                 echo 'Setting up Python virtual environment...'
 
                 // Remove old venv if exists
-                sh 'rm -rf ${VENV_PATH}'
+                sh 'rm -rf "${VENV_PATH}"'
 
-                // Create new virtual environment
-                sh 'python3 -m venv ${VENV_PATH}'
+                sh 'python3 -m venv "${VENV_PATH}"'
 
-                // Install dependencies
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    . "${VENV_PATH}/bin/activate"
                     pip install --upgrade pip
                     pip install -r requirements.txt
                 '''
@@ -187,7 +190,7 @@ pipeline {
 
                 script {
                     def robotCmd = '''
-                        . ${VENV_PATH}/bin/activate
+                        . "${VENV_PATH}/bin/activate"
                         robot \
                             --outputdir results \
                             --output popo_output.xml \
@@ -239,7 +242,7 @@ pipeline {
 
                 script {
                     def robotCmd = '''
-                        . ${VENV_PATH}/bin/activate
+                        . "${VENV_PATH}/bin/activate"
                         robot \
                             --outputdir results \
                             --output functional_output.xml \
